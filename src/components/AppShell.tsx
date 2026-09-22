@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, CreditCard, Download, Home, Menu, Plus, ReceiptText, Settings, Store, Tag } from "lucide-react";
+import { BarChart3, CreditCard, Download, Home, Menu, Plus, ReceiptText, Store, Tag, UserRound } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -23,7 +23,7 @@ const DESKTOP: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/more/merchants", label: "Merchants", icon: Store },
   { href: "/more/payment-methods", label: "Payment methods", icon: CreditCard },
   { href: "/more/export", label: "Export", icon: Download },
-  { href: "/more/settings", label: "Profile", icon: Settings },
+  { href: "/more/settings", label: "Profile", icon: UserRound },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {

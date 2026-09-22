@@ -25,3 +25,5 @@ if (!res.ok) {
   process.exit(1);
 }
 console.log("Google sign-in enabled");
+console.log(`Add this Authorized redirect URI in Google Cloud:`);
+console.log(`https://${projectRef}.supabase.co/auth/v1/callback`);

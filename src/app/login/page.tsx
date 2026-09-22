@@ -32,7 +32,10 @@ export default function LoginPage() {
       const supabase = createClient();
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo: `${window.location.origin}/auth/callback` },
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+          queryParams: { prompt: "select_account" },
+        },
       });
       if (oauthError) throw oauthError;
     } catch (err) {
@@ -56,12 +59,18 @@ export default function LoginPage() {
     try {
       const supabase = createClient();
       if (mode === "up") {
-        const { error: signUpError } = await supabase.auth.signUp({
+        const { data, error: signUpError } = await supabase.auth.signUp({
           email: email.trim(),
           password,
           options: { data: { full_name: name.trim() } },
         });
         if (signUpError) throw signUpError;
+        if (!data.session) {
+          setMode("in");
+          setError("Household created. Sign in with the same email.");
+          setBusy(false);
+          return;
+        }
       } else {
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email: email.trim(),

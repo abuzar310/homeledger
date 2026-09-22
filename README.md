@@ -15,9 +15,10 @@ A mobile-first household expense app. Add Milk and ₹54 in a few seconds. The a
 ## Local setup
 
 1. Copy `.env.example` to `.env.local` and add your Supabase URL and anon key.
-2. In the Supabase SQL editor, run `supabase/migrations/0001_init.sql`.
-3. In Authentication settings, turn off email confirmation for easiest family use.
-4. Install and start:
+2. In the Supabase SQL editor, run `supabase/migrations/0001_init.sql` then `0002_profiles.sql`.
+3. Email sign-in works immediately when confirmation is off (autoconfirm).
+4. Google: create a Web OAuth client in Google Cloud. Authorized JavaScript origins are your app URL and `http://localhost:3000`. Authorized redirect URI is `https://<project-ref>.supabase.co/auth/v1/callback`. Put the client ID and secret in `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` and run `node scripts/enable-google-auth.mjs`.
+5. Install and start:
 
 ```bash
 npm install
@@ -50,4 +51,4 @@ This needs `SUPABASE_SERVICE_ROLE_KEY` in the environment. Never put that key in
 - Optional AI provider behind `categorizeExpense()` — the app still works if AI is not configured
 - Purchases with optional line items and receipt photos
 - Home, transactions, reports, export (CSV / Excel / PDF)
-- One household in V1, with `household_members` ready for family sharing later
+- Google or email login, profile, and one isolated household per account
