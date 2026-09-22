@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { formatINR } from "@/lib/money";
 import { formatRelativeDay } from "@/lib/dates";
+import { categoryIcon } from "@/lib/icons";
 import type { Transaction } from "@/lib/types";
+import { IconWell } from "./ui";
 
 export function TransactionRow({
   tx,
@@ -19,7 +21,8 @@ export function TransactionRow({
       href={`/transactions/${tx.id}`}
       className="press flex min-h-16 items-center justify-between gap-3 border-b border-line py-3 last:border-b-0"
     >
-      <div className="min-w-0">
+      <IconWell icon={categoryIcon(tx.category?.name)} />
+      <div className="min-w-0 flex-1">
         <p className="truncate text-[16px] font-medium text-ink">{tx.name}</p>
         <p className="truncate text-[13px] text-muted">
           {meta || "Expense"}

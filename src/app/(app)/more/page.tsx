@@ -1,29 +1,30 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
-import { ScreenTitle } from "@/components/ui";
+import { Banknote, BookOpen, ChevronRight, Download, HelpCircle, Settings, Store, Tag, WalletCards } from "lucide-react";
+import { IconWell, ScreenTitle } from "@/components/ui";
+import type { LucideIcon } from "lucide-react";
 
-const SECTIONS = [
+const SECTIONS: { title: string; items: { href: string; label: string; icon: LucideIcon }[] }[] = [
   {
     title: "Household",
     items: [
-      { href: "/more/categories", label: "Categories" },
-      { href: "/more/payment-methods", label: "Payment methods" },
-      { href: "/more/merchants", label: "Merchants" },
-      { href: "/more/budgets", label: "Budgets" },
+      { href: "/more/categories", label: "Categories", icon: Tag },
+      { href: "/more/payment-methods", label: "Payment methods", icon: WalletCards },
+      { href: "/more/merchants", label: "Merchants", icon: Store },
+      { href: "/more/budgets", label: "Budgets", icon: Banknote },
     ],
   },
   {
     title: "Data",
-    items: [{ href: "/more/export", label: "Export data" }],
+    items: [{ href: "/more/export", label: "Export data", icon: Download }],
   },
   {
     title: "App",
     items: [
-      { href: "/more/settings", label: "App settings" },
-      { href: "/more/help", label: "Help & support" },
-      { href: "/more/about", label: "About" },
+      { href: "/more/settings", label: "App settings", icon: Settings },
+      { href: "/more/help", label: "Help & support", icon: HelpCircle },
+      { href: "/more/about", label: "About", icon: BookOpen },
     ],
   },
 ];
@@ -40,10 +41,13 @@ export default function MorePage() {
               <Link
                 key={item.href}
                 href={item.href}
-                className="flex min-h-14 items-center justify-between border-b border-line px-4 last:border-0"
+                className="flex min-h-14 items-center justify-between gap-3 border-b border-line px-3 last:border-0"
               >
-                <span className="text-[16px]">{item.label}</span>
-                <ChevronRight className="size-4 text-muted" />
+                <span className="flex min-w-0 items-center gap-3">
+                  <IconWell icon={item.icon} className="size-9" />
+                  <span className="text-[16px]">{item.label}</span>
+                </span>
+                <ChevronRight className="size-4 shrink-0 text-muted" aria-hidden />
               </Link>
             ))}
           </div>

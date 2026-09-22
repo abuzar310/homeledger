@@ -1,4 +1,19 @@
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from "react";
+import type { LucideIcon } from "lucide-react";
+
+export function IconWell({
+  icon: Icon,
+  className = "",
+}: {
+  icon: LucideIcon;
+  className?: string;
+}) {
+  return (
+    <span className={`inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-primary-soft text-primary-deep ${className}`}>
+      <Icon className="size-[52%]" strokeWidth={1.75} aria-hidden />
+    </span>
+  );
+}
 
 export const controlClass =
   "min-h-12 w-full rounded-xl border border-line bg-surface px-3.5 text-base text-ink outline-none placeholder:text-muted focus:border-primary";

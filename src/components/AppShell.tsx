@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Home, Menu, Plus, ReceiptText } from "lucide-react";
+import { BarChart3, CreditCard, Download, Home, Menu, Plus, ReceiptText, Settings, Store, Tag } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 const NAV = [
@@ -13,16 +14,16 @@ const NAV = [
   { href: "/more", label: "More", icon: Menu },
 ];
 
-const DESKTOP = [
-  { href: "/home", label: "Home" },
-  { href: "/transactions", label: "Transactions" },
-  { href: "/add", label: "Add expense" },
-  { href: "/reports", label: "Reports" },
-  { href: "/more/categories", label: "Categories" },
-  { href: "/more/merchants", label: "Merchants" },
-  { href: "/more/payment-methods", label: "Payment methods" },
-  { href: "/more/export", label: "Export" },
-  { href: "/more", label: "Settings" },
+const DESKTOP: { href: string; label: string; icon: LucideIcon }[] = [
+  { href: "/home", label: "Home", icon: Home },
+  { href: "/transactions", label: "Transactions", icon: ReceiptText },
+  { href: "/add", label: "Add expense", icon: Plus },
+  { href: "/reports", label: "Reports", icon: BarChart3 },
+  { href: "/more/categories", label: "Categories", icon: Tag },
+  { href: "/more/merchants", label: "Merchants", icon: Store },
+  { href: "/more/payment-methods", label: "Payment methods", icon: CreditCard },
+  { href: "/more/export", label: "Export", icon: Download },
+  { href: "/more", label: "Settings", icon: Settings },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -36,14 +37,16 @@ export function AppShell({ children }: { children: ReactNode }) {
         <nav className="mt-8 space-y-1">
           {DESKTOP.map((item) => {
             const active = pathname === item.href || (item.href !== "/more" && pathname.startsWith(item.href));
+            const Icon = item.icon;
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex min-h-11 items-center rounded-xl px-3 text-[15px] ${
+                className={`flex min-h-11 items-center gap-2.5 rounded-xl px-3 text-[15px] ${
                   active ? "bg-primary-soft font-semibold text-primary-deep" : "text-ink"
                 }`}
               >
+                <Icon className="size-4 shrink-0" strokeWidth={1.75} aria-hidden />
                 {item.label}
               </Link>
             );
