@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Field, PrimaryButton, TextInput } from "@/components/ui";
+import { GOOGLE_CLIENT_ID, loadGsi } from "@/lib/google";
 import { createClient } from "@/lib/supabase/client";
 
 function GoogleMark() {
@@ -27,29 +28,47 @@ export default function LoginPage() {
 
   async function withGoogle() {
     setError(null);
-    setBusy(true);
+    if (!GOOGLE_CLIENT_ID) {
+      setError("Google sign-in is not switched on yet. Use email to create your household.");
+      return;
+    }
     try {
-      const status = await fetch("/api/auth/google-ready").then((r) => r.json());
-      if (!status?.ready) {
-        throw new Error("provider is not enabled");
-      }
-      const supabase = createClient();
-      const { error: oauthError } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-          queryParams: { prompt: "select_account" },
+      await loadGsi();
+      const client = window.google?.accounts.oauth2.initCodeClient({
+        client_id: GOOGLE_CLIENT_ID,
+        scope: "openid email profile",
+        ux_mode: "popup",
+        callback: (resp) => {
+          void (async () => {
+            if (resp.error || !resp.code) {
+              setError("Google sign-in was cancelled.");
+              return;
+            }
+            setBusy(true);
+            try {
+              const exchanged = await fetch("/api/auth/google", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ code: resp.code }),
+              }).then((r) => r.json());
+              if (!exchanged.id_token) throw new Error(exchanged.error || "Google sign-in failed.");
+              const { error: idError } = await createClient().auth.signInWithIdToken({
+                provider: "google",
+                token: exchanged.id_token,
+              });
+              if (idError) throw idError;
+              router.replace("/home");
+              router.refresh();
+            } catch (err) {
+              setBusy(false);
+              setError(err instanceof Error ? err.message : "Google sign-in failed.");
+            }
+          })();
         },
       });
-      if (oauthError) throw oauthError;
+      client?.requestCode();
     } catch (err) {
-      setBusy(false);
-      const message = err instanceof Error ? err.message : "Google sign-in failed.";
-      setError(
-        /provider/i.test(message)
-          ? "Google sign-in is not switched on yet. Use email to create your household."
-          : message,
-      );
+      setError(err instanceof Error ? err.message : "Google sign-in failed.");
     }
   }
 
