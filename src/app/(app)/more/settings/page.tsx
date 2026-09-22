@@ -1,12 +1,9 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useHousehold } from "@/components/HouseholdProvider";
-import { Card, PrimaryButton, ScreenTitle } from "@/components/ui";
-import { createClient } from "@/lib/supabase/client";
+import { Card, ScreenTitle } from "@/components/ui";
 
 export default function SettingsPage() {
-  const router = useRouter();
   const { household } = useHousehold();
 
   return (
@@ -15,15 +12,8 @@ export default function SettingsPage() {
       <Card>
         <p className="text-[15px] text-muted">Home</p>
         <p className="text-lg font-semibold">{household?.name ?? "My Home"}</p>
+        <p className="mt-3 text-[15px] text-muted">Expenses are saved to this household automatically. No sign-in needed.</p>
       </Card>
-      <PrimaryButton
-        onClick={async () => {
-          await createClient().auth.signOut();
-          router.replace("/login");
-        }}
-      >
-        Sign out
-      </PrimaryButton>
     </div>
   );
 }

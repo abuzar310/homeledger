@@ -30,12 +30,16 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
       return;
     }
     const supabase = createClient();
-    const {
+    let {
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) {
-      setUserId(null);
-      setHousehold(null);
+      const { data, error: anonError } = await supabase.auth.signInAnonymously();
+      if (anonError) throw anonError;
+      user = data.user;
+    }
+    if (!user) {
+      setError("Could not open the household.");
       setLoading(false);
       return;
     }

@@ -1,8 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/login", "/signup"];
-
 export async function updateSession(request: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -25,21 +23,10 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  await supabase.auth.getUser();
 
   const path = request.nextUrl.pathname;
-  const isPublic = PUBLIC_PATHS.some((p) => path === p || path.startsWith(`${p}/`));
-
-  if (!user && !isPublic) {
-    const redirect = request.nextUrl.clone();
-    redirect.pathname = "/login";
-    redirect.search = "";
-    return NextResponse.redirect(redirect);
-  }
-
-  if (user && isPublic) {
+  if (path === "/login" || path === "/signup" || path.startsWith("/login/") || path.startsWith("/signup/")) {
     const redirect = request.nextUrl.clone();
     redirect.pathname = "/home";
     redirect.search = "";
