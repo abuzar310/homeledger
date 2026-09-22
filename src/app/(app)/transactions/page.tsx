@@ -59,7 +59,7 @@ function TransactionsInner() {
       <div className="flex items-center justify-between">
         <MonthPicker value={month} onChange={(next) => router.replace(`/transactions?month=${next}`)} />
         <button
-          className="inline-flex min-h-11 items-center gap-2 text-[15px] font-semibold text-green"
+          className="inline-flex min-h-11 items-center gap-2 text-[15px] font-semibold text-primary"
           onClick={() => setOpenFilters(true)}
         >
           <SlidersHorizontal className="size-4" />
@@ -90,7 +90,7 @@ function TransactionsInner() {
           {groups.map((group) => (
             <section key={group.date}>
               <div className="mb-1">
-                <h2 className="text-[13px] font-semibold uppercase tracking-wide text-muted">{group.title}</h2>
+                <h2 className="text-[13px] font-medium text-muted">{group.title}</h2>
                 {group.subtitle ? <p className="text-[13px] text-muted">{group.subtitle}</p> : null}
               </div>
               <div className="rounded-2xl border border-line bg-surface px-4">
@@ -102,7 +102,7 @@ function TransactionsInner() {
           ))}
           {hasMore ? (
             <button
-              className="min-h-12 w-full text-[15px] font-semibold text-green"
+              className="min-h-12 w-full text-[15px] font-semibold text-primary"
               onClick={async () => {
                 if (!household) return;
                 const next = await listTransactions(createClient(), household.id, applied, page + 1, 30);

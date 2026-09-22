@@ -57,10 +57,11 @@ function ReportsInner() {
         />
       ) : (
         <>
-          <Card>
-            <p className="text-muted">Total spent</p>
-            <p className="mt-1 text-[32px] font-semibold tabular-nums">{formatINR(total)}</p>
-          </Card>
+          <section>
+            <p className="text-[15px] text-muted">This month</p>
+            <p className="mt-1 text-[32px] font-semibold leading-none tracking-tight tabular-nums">{formatINR(total)}</p>
+            <div className="ledger-rule mt-3" aria-hidden />
+          </section>
 
           <Card>
             <h2 className="mb-3 text-[16px] font-semibold">Month comparison</h2>

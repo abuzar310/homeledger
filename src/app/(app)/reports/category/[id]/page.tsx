@@ -38,7 +38,7 @@ function CategoryReportInner() {
 
   return (
     <div className="space-y-4">
-      <button className="min-h-11 text-[15px] font-semibold text-green" onClick={() => router.back()}>
+      <button className="min-h-11 text-[15px] font-semibold text-primary" onClick={() => router.back()}>
         Back
       </button>
       <div>

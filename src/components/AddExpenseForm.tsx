@@ -9,7 +9,7 @@ import { createClient } from "@/lib/supabase/client";
 import { saveExpense } from "@/lib/transactions";
 import { useHousehold } from "./HouseholdProvider";
 import { SaveStatus } from "./SaveStatus";
-import { Field, PrimaryButton, TextArea, TextInput } from "./ui";
+import { Field, PrimaryButton, Select, TextArea, TextInput } from "./ui";
 
 type Mode = "quick" | "detailed";
 
@@ -100,11 +100,12 @@ export function AddExpenseForm() {
 
   if (savedLabel) {
     return (
-      <div className="rounded-2xl border border-line bg-surface px-5 py-10 text-center">
-        <p className="text-sm font-medium text-green">Expense added</p>
+      <div className="px-1 py-10 text-center">
+        <p className="text-sm font-medium text-accent">Expense added</p>
         <h2 className="mt-2 text-2xl font-semibold">{savedLabel.name}</h2>
         <p className="mt-1 text-xl tabular-nums">{savedLabel.amount}</p>
-        <p className="mt-2 text-muted">{savedLabel.category}</p>
+        <div className="ledger-rule mx-auto mt-3" aria-hidden />
+        <p className="mt-3 text-muted">{savedLabel.category}</p>
       </div>
     );
   }
@@ -138,18 +139,22 @@ export function AddExpenseForm() {
           autoFocus
         />
       </Field>
-      <Field label="Amount">
-        <div className="relative">
-          <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted">₹</span>
-          <TextInput
-            className="pl-8"
+      <label className="block">
+        <span className="mb-1.5 block text-[15px] font-medium text-ink">Amount</span>
+        <div className="flex items-baseline gap-1.5 border-b-2 border-primary pb-2">
+          <span className="text-2xl text-muted" aria-hidden>
+            ₹
+          </span>
+          <input
             inputMode="decimal"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             placeholder="54"
+            aria-label="Amount"
+            className="w-full bg-transparent text-[36px] font-semibold leading-none tracking-tight tabular-nums text-ink outline-none placeholder:text-muted"
           />
         </div>
-      </Field>
+      </label>
       <Field label="Date">
         <TextInput type="date" value={date} onChange={(e) => setDate(e.target.value)} />
       </Field>
@@ -157,8 +162,7 @@ export function AddExpenseForm() {
       {mode === "detailed" ? (
         <>
           <Field label="Category">
-            <select
-              className="min-h-12 w-full rounded-xl border border-line bg-surface px-3.5"
+            <Select
               value={categoryId}
               onChange={(e) => {
                 setCategoryId(e.target.value);
@@ -171,52 +175,40 @@ export function AddExpenseForm() {
                   {c.group_name} — {c.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </Field>
           <Field label="Subcategory">
-            <select
-              className="min-h-12 w-full rounded-xl border border-line bg-surface px-3.5"
-              value={subcategoryId}
-              onChange={(e) => setSubcategoryId(e.target.value)}
-            >
+            <Select value={subcategoryId} onChange={(e) => setSubcategoryId(e.target.value)}>
               <option value="">Optional</option>
               {subs.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </Field>
           <Field label="Merchant / store">
             <TextInput value={merchantName} onChange={(e) => setMerchantName(e.target.value)} placeholder="Optional" />
           </Field>
           <Field label="Payment method">
-            <select
-              className="min-h-12 w-full rounded-xl border border-line bg-surface px-3.5"
-              value={paymentMethodId}
-              onChange={(e) => setPaymentMethodId(e.target.value)}
-            >
+            <Select value={paymentMethodId} onChange={(e) => setPaymentMethodId(e.target.value)}>
               <option value="">Optional</option>
               {catalogs.paymentMethods.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </Field>
           <Field label="Purchase channel">
-            <select
-              className="min-h-12 w-full rounded-xl border border-line bg-surface px-3.5"
-              value={channel}
-              onChange={(e) => setChannel(e.target.value as PurchaseChannel | "")}
-            >
+            <Select value={channel} onChange={(e) => setChannel(e.target.value as PurchaseChannel | "")}>
               <option value="">Optional</option>
               {CHANNELS.map((c) => (
                 <option key={c} value={c}>
                   {CHANNEL_LABELS[c]}
                 </option>
               ))}
-            </select>
+            </Select>
           </Field>
           <Field label="Notes">
             <TextArea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional" />
@@ -234,7 +226,7 @@ export function AddExpenseForm() {
               <p className="text-[15px] font-medium">Line items</p>
               <button
                 type="button"
-                className="min-h-11 text-[15px] font-semibold text-green"
+                className="min-h-11 text-[15px] font-semibold text-primary"
                 onClick={() => setItems((prev) => [...prev, { name: "", amount: "" }])}
               >
                 Add item

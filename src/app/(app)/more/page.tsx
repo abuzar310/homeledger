@@ -34,7 +34,7 @@ export default function MorePage() {
       <ScreenTitle title="More" />
       {SECTIONS.map((section) => (
         <section key={section.title}>
-          <h2 className="mb-2 text-[13px] font-semibold uppercase tracking-wide text-muted">{section.title}</h2>
+          <h2 className="mb-2 text-[13px] font-medium text-muted">{section.title}</h2>
           <div className="overflow-hidden rounded-2xl border border-line bg-surface">
             {section.items.map((item) => (
               <Link

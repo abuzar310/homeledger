@@ -7,13 +7,21 @@ export function SaveStatus({
 }) {
   if (state === "idle") return null;
   if (state === "saving") {
-    return <p className="text-center text-[14px] text-muted">Saving…</p>;
+    return (
+      <p className="text-center text-[14px] text-muted" aria-live="polite">
+        Saving…
+      </p>
+    );
   }
   if (state === "saved") {
-    return <p className="text-center text-[14px] font-medium text-green">Saved</p>;
+    return (
+      <p className="text-center text-[14px] font-medium text-accent" aria-live="polite">
+        Saved
+      </p>
+    );
   }
   return (
-    <p className="text-center text-[14px] text-danger">
+    <p className="text-center text-[14px] text-danger" role="alert">
       Couldn&apos;t save —{" "}
       <button className="font-semibold underline" onClick={onRetry}>
         Retry

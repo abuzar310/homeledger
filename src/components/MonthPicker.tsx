@@ -8,9 +8,11 @@ import { BottomSheet } from "./BottomSheet";
 export function MonthPicker({
   value,
   onChange,
+  className = "",
 }: {
   value: string;
   onChange: (next: string) => void;
+  className?: string;
 }) {
   const [open, setOpen] = useState(false);
   const months = useMemo(() => {
@@ -25,7 +27,8 @@ export function MonthPicker({
   return (
     <>
       <button
-        className="inline-flex min-h-11 items-center gap-1 rounded-lg text-[16px] font-medium text-ink"
+        className={`inline-flex min-h-11 items-center gap-1 rounded-lg text-[16px] font-medium text-ink ${className}`}
+        aria-label="Choose month"
         onClick={() => setOpen(true)}
         aria-haspopup="dialog"
       >
@@ -38,7 +41,7 @@ export function MonthPicker({
             <li key={key}>
               <button
                 className={`flex min-h-12 w-full items-center rounded-xl px-3 text-left text-[16px] ${
-                  key === value ? "bg-green-soft font-semibold text-green-deep" : "text-ink"
+                  key === value ? "bg-primary-soft font-semibold text-primary-deep" : "text-ink"
                 }`}
                 onClick={() => {
                   onChange(key);
