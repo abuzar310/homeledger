@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { useHousehold } from "@/components/HouseholdProvider";
 import { MonthPicker } from "@/components/MonthPicker";
 import { TransactionRow } from "@/components/TransactionRow";
+import { CountUp } from "@/components/CountUp";
 import { Card, PrimaryButton, ScreenTitle } from "@/components/ui";
 import { formatMonthLabel, monthKey, previousMonth } from "@/lib/dates";
 import { formatINR } from "@/lib/money";
@@ -59,7 +60,7 @@ function ReportsInner() {
       ) : !rows.length ? (
         <EmptyState
           title="No reports yet"
-          body="Add some expenses to see your spending reports."
+          body="Add some expenses to see this month's spending."
           icon={BarChart3}
           action={
             <Link href="/add">
@@ -71,7 +72,9 @@ function ReportsInner() {
         <>
           <section>
             <p className="text-[15px] text-muted">This month</p>
-            <p className="mt-1 text-[32px] font-semibold leading-none tracking-tight tabular-nums">{formatINR(total)}</p>
+            <p className="mt-1 text-[32px] font-semibold leading-none tracking-tight tabular-nums">
+              <CountUp value={total} />
+            </p>
             <div className="ledger-rule mt-3" aria-hidden />
           </section>
 
@@ -80,11 +83,15 @@ function ReportsInner() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <p className="text-[13px] text-muted">{formatMonthLabel(previousMonth(month))}</p>
-                <p className="text-lg font-semibold tabular-nums">{formatINR(previous)}</p>
+                <p className="text-lg font-semibold tabular-nums">
+                  <CountUp value={previous} />
+                </p>
               </div>
               <div>
                 <p className="text-[13px] text-muted">{formatMonthLabel(month)}</p>
-                <p className="text-lg font-semibold tabular-nums">{formatINR(total)}</p>
+                <p className="text-lg font-semibold tabular-nums">
+                  <CountUp value={total} />
+                </p>
               </div>
             </div>
           </Card>

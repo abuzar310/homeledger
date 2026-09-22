@@ -41,7 +41,7 @@ export default function MorePage() {
               <Link
                 key={item.href}
                 href={item.href}
-                className="flex min-h-14 items-center justify-between gap-3 border-b border-line px-3 last:border-0"
+                className="press flex min-h-14 items-center justify-between gap-3 border-b border-line px-3 last:border-0"
               >
                 <span className="flex min-w-0 items-center gap-3">
                   <IconWell icon={item.icon} className="size-9" />

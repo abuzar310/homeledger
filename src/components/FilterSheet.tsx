@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { CHANNELS, CHANNEL_LABELS, type PurchaseChannel } from "@/lib/types";
 import type { TransactionFilters } from "@/lib/transactions";
+import { createClient } from "@/lib/supabase/client";
 import { useHousehold } from "./HouseholdProvider";
 import { BottomSheet } from "./BottomSheet";
 import { Field, PrimaryButton, SecondaryButton, Select, TextInput } from "./ui";
@@ -17,8 +19,19 @@ export function FilterSheet({
   onClose: () => void;
   onApply: (next: TransactionFilters) => void;
 }) {
-  const { catalogs } = useHousehold();
+  const { catalogs, household } = useHousehold();
+  const [merchants, setMerchants] = useState<{ id: string; name: string }[]>([]);
   const subs = catalogs.subcategories.filter((s) => !value.categoryId || s.category_id === value.categoryId);
+
+  useEffect(() => {
+    if (!open || !household) return;
+    createClient()
+      .from("merchants")
+      .select("id, name")
+      .eq("household_id", household.id)
+      .order("name")
+      .then(({ data }) => setMerchants((data ?? []) as { id: string; name: string }[]));
+  }, [open, household]);
 
   return (
     <BottomSheet open={open} title="Filters" onClose={onClose}>
@@ -51,6 +64,19 @@ export function FilterSheet({
             {subs.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.name}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field label="Merchant">
+          <Select
+            value={value.merchantId ?? ""}
+            onChange={(e) => onApply({ ...value, merchantId: e.target.value || undefined })}
+          >
+            <option value="">All</option>
+            {merchants.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name}
               </option>
             ))}
           </Select>
@@ -115,7 +141,7 @@ export function FilterSheet({
           >
             Clear
           </SecondaryButton>
-          <PrimaryButton onClick={onClose}>Done</PrimaryButton>
+          <PrimaryButton onClick={onClose}>Apply</PrimaryButton>
         </div>
       </div>
     </BottomSheet>

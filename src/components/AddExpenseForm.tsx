@@ -90,8 +90,7 @@ export function AddExpenseForm() {
       });
       setStatus("saved");
       window.setTimeout(() => {
-        if (window.history.length > 1) router.back();
-        else router.replace("/home");
+        router.replace(`/home?added=${saved.id}`);
       }, 900);
     } catch {
       setStatus("error");
@@ -101,7 +100,10 @@ export function AddExpenseForm() {
   if (savedLabel) {
     return (
       <div className="px-1 py-10 text-center">
-        <p className="text-sm font-medium text-accent">Expense added</p>
+        <span className="check-pop mx-auto flex size-12 items-center justify-center rounded-full bg-accent-soft text-xl text-accent" aria-hidden>
+          ✓
+        </span>
+        <p className="mt-3 text-sm font-medium text-accent">Expense added</p>
         <h2 className="mt-2 text-2xl font-semibold">{savedLabel.name}</h2>
         <p className="mt-1 text-xl tabular-nums">{savedLabel.amount}</p>
         <div className="ledger-rule mx-auto mt-3" aria-hidden />
@@ -265,8 +267,8 @@ export function AddExpenseForm() {
           void submit();
         }}
       />
-      <PrimaryButton type="submit" disabled={status === "saving"}>
-        Add expense
+      <PrimaryButton type="submit" disabled={status === "saving" || status === "saved"}>
+        {status === "saving" ? "Saving…" : status === "saved" ? "✓ Saved" : "Add expense"}
       </PrimaryButton>
     </form>
   );

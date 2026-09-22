@@ -8,6 +8,7 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { EmptyState } from "@/components/EmptyState";
 import { useHousehold } from "@/components/HouseholdProvider";
 import { MonthPicker } from "@/components/MonthPicker";
+import { PullRefresh } from "@/components/PullRefresh";
 import { TransactionRow } from "@/components/TransactionRow";
 import { PrimaryButton, ScreenTitle, TextInput } from "@/components/ui";
 import { formatDayHeading, monthEnd, monthKey, monthStart } from "@/lib/dates";
@@ -23,7 +24,8 @@ function TransactionsInner() {
   const router = useRouter();
   const params = useSearchParams();
   const month = params.get("month") || monthKey();
-  const { household, catalogs, loading } = useHousehold();
+  const { household, catalogs, loading, refresh } = useHousehold();
+  const added = params.get("added");
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [filters, setFilters] = useState<TransactionFilters>({});
@@ -64,24 +66,43 @@ function TransactionsInner() {
   const groups = groupByDate(rows);
 
   return (
+    <PullRefresh
+      onRefresh={async () => {
+        await refresh();
+        if (!household) return;
+        const data = await listTransactions(createClient(), household.id, applied, 0, 30);
+        setRows(data);
+        setPage(0);
+        setHasMore(data.length === 30);
+      }}
+    >
     <div className="space-y-4">
       <ScreenTitle title="Transactions" />
       <div className="flex items-center justify-between">
         <MonthPicker value={month} onChange={(next) => router.replace(`/transactions?month=${next}`)} />
         <button
-          className="inline-flex min-h-11 items-center gap-2 text-[15px] font-semibold text-primary"
+          className="press inline-flex min-h-11 items-center gap-2 text-[15px] font-semibold text-primary"
           onClick={() => setOpenFilters(true)}
         >
           <SlidersHorizontal className="size-4" />
           Filter
         </button>
       </div>
-      <TextInput
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search expenses..."
-        aria-label="Search expenses"
-      />
+      <div className="flex items-center gap-2">
+        <TextInput
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search expenses..."
+          aria-label="Search expenses"
+          inputMode="search"
+          enterKeyHint="search"
+        />
+        {query ? (
+          <button type="button" className="press min-h-12 shrink-0 text-[15px] font-semibold text-primary" onClick={() => setQuery("")}>
+            Clear
+          </button>
+        ) : null}
+      </div>
 
       {loading || (busy && !rows.length) ? (
         <div className="space-y-3" aria-busy="true" aria-label="Loading expenses">
@@ -109,7 +130,12 @@ function TransactionsInner() {
               </div>
               <div className="rounded-2xl border border-line bg-surface px-4">
                 {group.items.map((tx) => (
-                  <TransactionRow key={tx.id} tx={tx} />
+                  <TransactionRow
+                    key={tx.id}
+                    tx={tx}
+                    highlight={tx.id === added}
+                    onDeleted={(id) => setRows((cur) => cur.filter((row) => row.id !== id))}
+                  />
                 ))}
               </div>
             </section>
@@ -141,6 +167,7 @@ function TransactionsInner() {
       ) : null}
       <p className="sr-only">{catalogs.categories.length} categories available</p>
     </div>
+    </PullRefresh>
   );
 }
 

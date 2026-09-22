@@ -16,7 +16,7 @@ export function IconWell({
 }
 
 export const controlClass =
-  "min-h-12 w-full rounded-xl border border-line bg-surface px-3.5 text-base text-ink outline-none placeholder:text-muted focus:border-primary";
+  "search-field min-h-12 w-full rounded-xl border border-line bg-surface px-3.5 text-base text-ink outline-none placeholder:text-muted focus:border-primary";
 
 export function Field({
   label,

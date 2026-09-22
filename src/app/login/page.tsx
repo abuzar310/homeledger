@@ -43,7 +43,8 @@ export default function LoginPage() {
       if (!window.google?.accounts?.oauth2) await loadGsi();
       const client = window.google?.accounts.oauth2.initCodeClient({
         client_id: GOOGLE_CLIENT_ID,
-        scope: "openid email profile",
+        scope: "openid email",
+        include_granted_scopes: false,
         ux_mode: "popup",
         callback: (resp) => {
           void (async () => {
@@ -131,6 +132,9 @@ export default function LoginPage() {
         <GoogleMark />
         {gsiReady ? "Continue with Google" : "Loading Google…"}
       </button>
+      <p className="mt-2 text-center text-[13px] text-muted">
+        We only ask Google for your email. If a warning appears, tap Advanced, then continue — or use email below.
+      </p>
 
       <p className="my-6 text-center text-[13px] text-muted">or email</p>
 

@@ -2,15 +2,18 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { CategoryBars } from "@/components/CategoryBars";
+import { CountUp } from "@/components/CountUp";
 import { EmptyState } from "@/components/EmptyState";
 import { useHousehold } from "@/components/HouseholdProvider";
 import { MonthPicker } from "@/components/MonthPicker";
+import { PullRefresh } from "@/components/PullRefresh";
 import { TransactionRow } from "@/components/TransactionRow";
 import { PrimaryButton } from "@/components/ui";
 import { monthKey } from "@/lib/dates";
 import { formatINR, percentChange } from "@/lib/money";
+import { useSessionOnce } from "@/lib/motion";
 import { fetchMonthTransactions, previousMonthTotal, spendByCategory, summarizeMonth } from "@/lib/reports";
 import { createClient } from "@/lib/supabase/client";
 import type { Transaction } from "@/lib/types";
@@ -19,25 +22,32 @@ function HomeInner() {
   const router = useRouter();
   const params = useSearchParams();
   const month = params.get("month") || monthKey();
-  const { household, catalogs, loading } = useHousehold();
+  const { household, catalogs, loading, refresh } = useHousehold();
   const [rows, setRows] = useState<Transaction[]>([]);
   const [previous, setPrevious] = useState(0);
   const [busy, setBusy] = useState(true);
+  const enter = useSessionOnce("hl-home-enter");
+  const added = params.get("added");
 
-  useEffect(() => {
+  const loadMonth = useCallback(async () => {
     if (!household) return;
     const supabase = createClient();
     setBusy(true);
-    Promise.all([
-      fetchMonthTransactions(supabase, household.id, month),
-      previousMonthTotal(supabase, household.id, month),
-    ])
-      .then(([txs, prev]) => {
-        setRows(txs);
-        setPrevious(prev);
-      })
-      .finally(() => setBusy(false));
+    try {
+      const [txs, prev] = await Promise.all([
+        fetchMonthTransactions(supabase, household.id, month),
+        previousMonthTotal(supabase, household.id, month),
+      ]);
+      setRows(txs);
+      setPrevious(prev);
+    } finally {
+      setBusy(false);
+    }
   }, [household, month]);
+
+  useEffect(() => {
+    void loadMonth();
+  }, [loadMonth]);
 
   const summary = summarizeMonth(rows, month);
   const categories = spendByCategory(rows, catalogs.categories).slice(0, 6);
@@ -45,8 +55,14 @@ function HomeInner() {
   const recent = rows.slice(0, 6);
 
   return (
+    <PullRefresh
+      onRefresh={async () => {
+        await refresh();
+        await loadMonth();
+      }}
+    >
     <div className="space-y-6">
-      <header>
+      <header className={enter ? "enter enter-1" : undefined}>
         <h1 className="sr-only">Home</h1>
         <MonthPicker
           value={month}
@@ -64,7 +80,7 @@ function HomeInner() {
       ) : !rows.length ? (
         <EmptyState
           title="No expenses yet"
-          body="Add the first one. Type what you bought and the amount."
+          body="Start by adding your first household expense."
           action={
             <Link href="/add">
               <PrimaryButton>Add expense</PrimaryButton>
@@ -73,9 +89,11 @@ function HomeInner() {
         />
       ) : (
         <>
-          <section>
+          <section className={enter ? "enter enter-2" : undefined}>
             <p className="text-[15px] text-muted">This month</p>
-            <p className="mt-1 text-[36px] font-semibold leading-none tracking-tight tabular-nums">{formatINR(summary.total)}</p>
+            <p className="mt-1 text-[36px] font-semibold leading-none tracking-tight tabular-nums">
+              <CountUp value={summary.total} />
+            </p>
             <div className="ledger-rule mt-3" aria-hidden />
             {change != null ? (
               <p className="mt-3 text-[14px] text-muted">
@@ -89,18 +107,18 @@ function HomeInner() {
             )}
           </section>
 
-          <dl className="grid grid-cols-3 gap-3">
+          <dl className={`grid grid-cols-3 gap-3 ${enter ? "enter enter-3" : ""}`}>
             <Mini label="Today" value={formatINR(summary.todayTotal)} />
             <Mini label="Daily average" value={formatINR(Math.round(summary.dailyAverage))} />
             <Mini label="Spends" value={String(summary.count)} />
           </dl>
 
-          <section>
+          <section className={enter ? "enter enter-4" : undefined}>
             <h2 className="mb-3 text-[16px] font-semibold">Spending by category</h2>
             <CategoryBars rows={categories} onSelect={(id) => router.push(`/reports/category/${id}?month=${month}`)} />
           </section>
 
-          <section>
+          <section className={enter ? "enter enter-5" : undefined}>
             <div className="mb-1 flex items-center justify-between">
               <h2 className="text-[16px] font-semibold">Recent</h2>
               <Link href="/transactions" className="inline-flex min-h-11 items-center text-[15px] font-semibold text-primary">
@@ -108,12 +126,19 @@ function HomeInner() {
               </Link>
             </div>
             {recent.map((tx) => (
-              <TransactionRow key={tx.id} tx={tx} showDate />
+              <TransactionRow
+                key={tx.id}
+                tx={tx}
+                showDate
+                highlight={tx.id === added}
+                onDeleted={(id) => setRows((cur) => cur.filter((row) => row.id !== id))}
+              />
             ))}
           </section>
         </>
       )}
     </div>
+    </PullRefresh>
   );
 }
 

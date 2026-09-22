@@ -9,6 +9,7 @@ declare global {
             client_id: string;
             scope: string;
             ux_mode: "popup" | "redirect";
+            include_granted_scopes?: boolean;
             callback: (resp: { code?: string; error?: string }) => void;
           }) => { requestCode: () => void };
         };
