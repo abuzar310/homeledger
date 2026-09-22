@@ -4,7 +4,7 @@ import { CHANNELS, CHANNEL_LABELS, type PurchaseChannel } from "@/lib/types";
 import type { TransactionFilters } from "@/lib/transactions";
 import { useHousehold } from "./HouseholdProvider";
 import { BottomSheet } from "./BottomSheet";
-import { Field, PrimaryButton, SecondaryButton, TextInput } from "./ui";
+import { Field, PrimaryButton, SecondaryButton, Select, TextInput } from "./ui";
 
 export function FilterSheet({
   open,
@@ -30,8 +30,7 @@ export function FilterSheet({
           <TextInput type="date" value={value.to ?? ""} onChange={(e) => onApply({ ...value, to: e.target.value })} />
         </Field>
         <Field label="Category">
-          <select
-            className="min-h-12 w-full rounded-xl border border-line bg-surface px-3.5"
+          <Select
             value={value.categoryId ?? ""}
             onChange={(e) => onApply({ ...value, categoryId: e.target.value || undefined, subcategoryId: undefined })}
           >
@@ -41,11 +40,10 @@ export function FilterSheet({
                 {c.name}
               </option>
             ))}
-          </select>
+          </Select>
         </Field>
         <Field label="Subcategory">
-          <select
-            className="min-h-12 w-full rounded-xl border border-line bg-surface px-3.5"
+          <Select
             value={value.subcategoryId ?? ""}
             onChange={(e) => onApply({ ...value, subcategoryId: e.target.value || undefined })}
           >
@@ -55,11 +53,10 @@ export function FilterSheet({
                 {s.name}
               </option>
             ))}
-          </select>
+          </Select>
         </Field>
         <Field label="Payment method">
-          <select
-            className="min-h-12 w-full rounded-xl border border-line bg-surface px-3.5"
+          <Select
             value={value.paymentMethodId ?? ""}
             onChange={(e) => onApply({ ...value, paymentMethodId: e.target.value || undefined })}
           >
@@ -69,11 +66,10 @@ export function FilterSheet({
                 {p.name}
               </option>
             ))}
-          </select>
+          </Select>
         </Field>
         <Field label="Purchase channel">
-          <select
-            className="min-h-12 w-full rounded-xl border border-line bg-surface px-3.5"
+          <Select
             value={value.channel ?? ""}
             onChange={(e) => onApply({ ...value, channel: (e.target.value || "") as PurchaseChannel | "" })}
           >
@@ -83,7 +79,7 @@ export function FilterSheet({
                 {CHANNEL_LABELS[c]}
               </option>
             ))}
-          </select>
+          </Select>
         </Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Min amount">

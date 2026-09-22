@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { CategoryBars } from "@/components/CategoryBars";
+import { BarChart3 } from "lucide-react";
 import { EmptyState } from "@/components/EmptyState";
 import { useHousehold } from "@/components/HouseholdProvider";
 import { MonthPicker } from "@/components/MonthPicker";
@@ -49,6 +50,7 @@ function ReportsInner() {
         <EmptyState
           title="No reports yet"
           body="Add some expenses to see your spending reports."
+          icon={BarChart3}
           action={
             <Link href="/add">
               <PrimaryButton>Add expense</PrimaryButton>
@@ -57,10 +59,11 @@ function ReportsInner() {
         />
       ) : (
         <>
-          <Card>
-            <p className="text-muted">Total spent</p>
-            <p className="mt-1 text-[32px] font-semibold tabular-nums">{formatINR(total)}</p>
-          </Card>
+          <section>
+            <p className="text-[15px] text-muted">This month</p>
+            <p className="mt-1 text-[32px] font-semibold leading-none tracking-tight tabular-nums">{formatINR(total)}</p>
+            <div className="ledger-rule mt-3" aria-hidden />
+          </section>
 
           <Card>
             <h2 className="mb-3 text-[16px] font-semibold">Month comparison</h2>

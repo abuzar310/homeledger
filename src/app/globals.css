@@ -1,19 +1,26 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #f6f3ee;
-  --surface: #ffffff;
-  --ink: #1f1c18;
-  --muted: #6b645c;
-  --line: #e6e0d6;
-  --green: #2f6b4f;
-  --green-soft: #e7f1eb;
-  --green-deep: #24553e;
-  --warn: #b54708;
-  --danger: #b42318;
-  --shadow: 0 8px 24px rgba(31, 28, 24, 0.06);
-  --nav-h: 84px;
+  /* Kitchen ledger: warmth lives in the pen, not the paper. */
+  --bg: oklch(1 0 0);
+  --surface: oklch(0.985 0 0);
+  --ink: oklch(0.22 0.025 36);
+  --muted: oklch(0.44 0.02 36);
+  --line: oklch(0.9 0.008 36);
+  --primary: oklch(0.52 0.15 36);
+  --primary-deep: oklch(0.4 0.12 36);
+  --primary-soft: oklch(0.96 0.02 36);
+  --on-primary: oklch(1 0 0);
+  --accent: oklch(0.38 0.07 210);
+  --accent-soft: oklch(0.95 0.02 210);
+  --warn: oklch(0.55 0.14 55);
+  --danger: oklch(0.5 0.18 25);
+  --nav-h: 88px;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration: 180ms;
+  --z-nav: 40;
+  --z-sheet: 50;
 }
 
 @theme inline {
@@ -22,11 +29,17 @@
   --color-ink: var(--ink);
   --color-muted: var(--muted);
   --color-line: var(--line);
-  --color-green: var(--green);
-  --color-green-soft: var(--green-soft);
-  --color-green-deep: var(--green-deep);
+  --color-primary: var(--primary);
+  --color-primary-deep: var(--primary-deep);
+  --color-primary-soft: var(--primary-soft);
+  --color-on-primary: var(--on-primary);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
   --color-warn: var(--warn);
   --color-danger: var(--danger);
+  --color-green: var(--primary);
+  --color-green-soft: var(--primary-soft);
+  --color-green-deep: var(--primary-deep);
   --font-sans: var(--font-sans);
 }
 
@@ -44,7 +57,7 @@ body {
 body {
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
   font-size: 16px;
-  line-height: 1.45;
+  line-height: 1.5;
 }
 
 button,
@@ -54,8 +67,20 @@ textarea {
   font: inherit;
 }
 
-button {
+button,
+a[href],
+[role="button"] {
+  cursor: pointer;
   touch-action: manipulation;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 a {
@@ -63,12 +88,47 @@ a {
   text-decoration: none;
 }
 
+.ledger-rule {
+  height: 2px;
+  width: 4.5rem;
+  background: var(--primary);
+}
+
 .sheet-scrim {
-  background: rgba(31, 28, 24, 0.36);
+  background: rgb(0 0 0 / 0.48);
+}
+
+.sheet-panel {
+  animation: sheet-up var(--duration) var(--ease-out);
+}
+
+.press {
+  transition: transform var(--duration) var(--ease-out), opacity var(--duration) var(--ease-out);
+}
+
+.press:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.skeleton {
+  background: color-mix(in oklab, var(--line) 80%, var(--surface));
+}
+
+@keyframes sheet-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  * {
+  *,
+  *::before,
+  *::after {
     animation: none !important;
     transition: none !important;
   }

@@ -8,7 +8,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { useHousehold } from "@/components/HouseholdProvider";
 import { MonthPicker } from "@/components/MonthPicker";
 import { TransactionRow } from "@/components/TransactionRow";
-import { Card, PrimaryButton } from "@/components/ui";
+import { PrimaryButton } from "@/components/ui";
 import { monthKey } from "@/lib/dates";
 import { formatINR, percentChange } from "@/lib/money";
 import { fetchMonthTransactions, previousMonthTotal, spendByCategory, summarizeMonth } from "@/lib/reports";
@@ -41,24 +41,30 @@ function HomeInner() {
 
   const summary = summarizeMonth(rows, month);
   const categories = spendByCategory(rows, catalogs.categories).slice(0, 6);
-  const change = percentChange(summary.total, previous);
+  const change = previous > 0 ? percentChange(summary.total, previous) : null;
   const recent = rows.slice(0, 6);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <header>
-        <p className="text-[13px] font-medium uppercase tracking-[0.14em] text-muted">HomeLedger</p>
-        <MonthPicker value={month} onChange={(next) => router.replace(`/home?month=${next}`)} />
+        <h1 className="sr-only">Home</h1>
+        <MonthPicker
+          value={month}
+          onChange={(next) => router.replace(`/home?month=${next}`)}
+          className="text-[22px] font-semibold tracking-tight"
+        />
       </header>
 
       {loading || busy ? (
-        <Card>
-          <p className="text-muted">Loading this month…</p>
-        </Card>
+        <div className="space-y-4" aria-busy="true" aria-label="Loading this month">
+          <div className="skeleton h-16 rounded-xl" />
+          <div className="skeleton h-8 rounded-xl" />
+          <div className="skeleton h-40 rounded-xl" />
+        </div>
       ) : !rows.length ? (
         <EmptyState
           title="No expenses yet"
-          body="Start by adding your first household expense."
+          body="Add the first one. Type what you bought and the amount."
           action={
             <Link href="/add">
               <PrimaryButton>Add expense</PrimaryButton>
@@ -67,38 +73,44 @@ function HomeInner() {
         />
       ) : (
         <>
-          <Card>
-            <p className="text-[15px] text-muted">Total spent</p>
-            <p className="mt-1 text-[34px] font-semibold leading-none tabular-nums">{formatINR(summary.total)}</p>
+          <section>
+            <p className="text-[15px] text-muted">This month</p>
+            <p className="mt-1 text-[36px] font-semibold leading-none tracking-tight tabular-nums">{formatINR(summary.total)}</p>
+            <div className="ledger-rule mt-3" aria-hidden />
             {change != null ? (
-              <p className="mt-2 text-[14px] text-muted">
-                {change >= 0 ? "↑" : "↓"} {Math.abs(change)}% vs last month
+              <p className="mt-3 text-[14px] text-muted">
+                {change >= 0 ? "Up" : "Down"} {Math.abs(change)}% from last month · {summary.count}{" "}
+                {summary.count === 1 ? "spend" : "spends"}
               </p>
-            ) : null}
-          </Card>
+            ) : (
+              <p className="mt-3 text-[14px] text-muted">
+                {summary.count} {summary.count === 1 ? "spend" : "spends"} so far
+              </p>
+            )}
+          </section>
 
-          <div className="grid grid-cols-3 gap-2">
+          <dl className="grid grid-cols-3 gap-3">
             <Mini label="Today" value={formatINR(summary.todayTotal)} />
             <Mini label="Daily average" value={formatINR(Math.round(summary.dailyAverage))} />
-            <Mini label="Transactions" value={String(summary.count)} />
-          </div>
+            <Mini label="Spends" value={String(summary.count)} />
+          </dl>
 
-          <Card>
+          <section>
             <h2 className="mb-3 text-[16px] font-semibold">Spending by category</h2>
             <CategoryBars rows={categories} onSelect={(id) => router.push(`/reports/category/${id}?month=${month}`)} />
-          </Card>
+          </section>
 
-          <Card>
+          <section>
             <div className="mb-1 flex items-center justify-between">
-              <h2 className="text-[16px] font-semibold">Recent transactions</h2>
-              <Link href="/transactions" className="min-h-11 text-[15px] font-semibold text-green">
+              <h2 className="text-[16px] font-semibold">Recent</h2>
+              <Link href="/transactions" className="inline-flex min-h-11 items-center text-[15px] font-semibold text-primary">
                 View all
               </Link>
             </div>
             {recent.map((tx) => (
               <TransactionRow key={tx.id} tx={tx} showDate />
             ))}
-          </Card>
+          </section>
         </>
       )}
     </div>
@@ -107,9 +119,9 @@ function HomeInner() {
 
 function Mini({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-line bg-surface px-3 py-3">
-      <p className="text-[12px] text-muted">{label}</p>
-      <p className="mt-1 text-[15px] font-semibold tabular-nums">{value}</p>
+    <div>
+      <dt className="text-[13px] text-muted">{label}</dt>
+      <dd className="mt-1 text-[15px] font-semibold tabular-nums">{value}</dd>
     </div>
   );
 }

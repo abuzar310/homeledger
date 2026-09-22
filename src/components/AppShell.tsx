@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Home, Menu, Plus, ReceiptText } from "lucide-react";
+import { BarChart3, CreditCard, Download, Home, Menu, Plus, ReceiptText, Settings, Store, Tag } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 const NAV = [
@@ -13,16 +14,16 @@ const NAV = [
   { href: "/more", label: "More", icon: Menu },
 ];
 
-const DESKTOP = [
-  { href: "/home", label: "Home" },
-  { href: "/transactions", label: "Transactions" },
-  { href: "/add", label: "Add Expense" },
-  { href: "/reports", label: "Reports" },
-  { href: "/more/categories", label: "Categories" },
-  { href: "/more/merchants", label: "Merchants" },
-  { href: "/more/payment-methods", label: "Payment Methods" },
-  { href: "/more/export", label: "Export" },
-  { href: "/more", label: "Settings" },
+const DESKTOP: { href: string; label: string; icon: LucideIcon }[] = [
+  { href: "/home", label: "Home", icon: Home },
+  { href: "/transactions", label: "Transactions", icon: ReceiptText },
+  { href: "/add", label: "Add expense", icon: Plus },
+  { href: "/reports", label: "Reports", icon: BarChart3 },
+  { href: "/more/categories", label: "Categories", icon: Tag },
+  { href: "/more/merchants", label: "Merchants", icon: Store },
+  { href: "/more/payment-methods", label: "Payment methods", icon: CreditCard },
+  { href: "/more/export", label: "Export", icon: Download },
+  { href: "/more", label: "Settings", icon: Settings },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -36,14 +37,16 @@ export function AppShell({ children }: { children: ReactNode }) {
         <nav className="mt-8 space-y-1">
           {DESKTOP.map((item) => {
             const active = pathname === item.href || (item.href !== "/more" && pathname.startsWith(item.href));
+            const Icon = item.icon;
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex min-h-11 items-center rounded-xl px-3 text-[15px] ${
-                  active ? "bg-green-soft font-semibold text-green-deep" : "text-ink"
+                className={`flex min-h-11 items-center gap-2.5 rounded-xl px-3 text-[15px] ${
+                  active ? "bg-primary-soft font-semibold text-primary-deep" : "text-ink"
                 }`}
               >
+                <Icon className="size-4 shrink-0" strokeWidth={1.75} aria-hidden />
                 {item.label}
               </Link>
             );
@@ -57,8 +60,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         </main>
 
         <nav
-          className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/95 backdrop-blur-sm md:hidden"
+          className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface md:hidden"
           style={{ paddingBottom: "var(--safe-bottom)" }}
+          aria-label="Main"
         >
           <ul className="mx-auto grid h-[var(--nav-h)] max-w-lg grid-cols-5 items-end px-2">
             {NAV.map((item) => {
@@ -67,12 +71,11 @@ export function AppShell({ children }: { children: ReactNode }) {
               if (item.center) {
                 return (
                   <li key={item.href} className="flex justify-center">
-                    <Link
-                      href={item.href}
-                      className="-mt-5 flex size-16 flex-col items-center justify-center rounded-full bg-green text-white shadow-[var(--shadow)]"
-                      aria-label="Add expense"
-                    >
-                      <Plus className="size-7" strokeWidth={2.5} />
+                    <Link href={item.href} className="press -mt-3 flex flex-col items-center text-[11px] font-semibold text-primary">
+                      <span className="flex size-14 items-center justify-center rounded-full bg-primary text-on-primary">
+                        <Plus className="size-7" strokeWidth={2.5} aria-hidden />
+                      </span>
+                      <span className="mt-1">Add</span>
                     </Link>
                   </li>
                 );
@@ -82,10 +85,11 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <Link
                     href={item.href}
                     className={`flex h-16 flex-col items-center justify-center gap-1 text-[11px] ${
-                      active ? "font-semibold text-green" : "text-muted"
+                      active ? "font-semibold text-primary" : "text-muted"
                     }`}
+                    aria-current={active ? "page" : undefined}
                   >
-                    <Icon className="size-5" />
+                    <Icon className="size-5" aria-hidden />
                     {item.label}
                   </Link>
                 </li>

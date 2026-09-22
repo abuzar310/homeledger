@@ -6,6 +6,7 @@ import "./globals.css";
 const sans = Plus_Jakarta_Sans({
   subsets: ["latin"],
   variable: "--font-sans",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -17,8 +18,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  themeColor: "#2F6B4F",
+  themeColor: "#b54a2a",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
