@@ -23,7 +23,7 @@ function TransactionsInner() {
   const router = useRouter();
   const params = useSearchParams();
   const month = params.get("month") || monthKey();
-  const { household, catalogs } = useHousehold();
+  const { household, catalogs, loading } = useHousehold();
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [filters, setFilters] = useState<TransactionFilters>({});
@@ -83,7 +83,7 @@ function TransactionsInner() {
         aria-label="Search expenses"
       />
 
-      {busy && !rows.length ? (
+      {loading || (busy && !rows.length) ? (
         <div className="space-y-3" aria-busy="true" aria-label="Loading expenses">
           <div className="skeleton h-16 rounded-2xl" />
           <div className="skeleton h-16 rounded-2xl" />

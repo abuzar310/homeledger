@@ -20,7 +20,7 @@ function ReportsInner() {
   const router = useRouter();
   const params = useSearchParams();
   const month = params.get("month") || monthKey();
-  const { household, catalogs } = useHousehold();
+  const { household, catalogs, loading } = useHousehold();
   const [rows, setRows] = useState<Transaction[]>([]);
   const [previous, setPrevious] = useState(0);
   const [busy, setBusy] = useState(true);
@@ -50,7 +50,7 @@ function ReportsInner() {
       <ScreenTitle title="Reports" />
       <MonthPicker value={month} onChange={(next) => router.replace(`/reports?month=${next}`)} />
 
-      {busy ? (
+      {loading || busy ? (
         <div className="space-y-3" aria-busy="true" aria-label="Loading reports">
           <div className="skeleton h-16 rounded-xl" />
           <div className="skeleton h-32 rounded-xl" />
