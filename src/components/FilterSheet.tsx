@@ -128,7 +128,7 @@ export function FilterSheet({
             />
           </Field>
         </div>
-        <div className="grid grid-cols-2 gap-3 pt-2">
+        <div className="sticky bottom-0 grid grid-cols-2 gap-3 bg-surface pt-3">
           <SecondaryButton
             onClick={() =>
               setDraft({
