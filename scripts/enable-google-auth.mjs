@@ -25,5 +25,9 @@ if (!res.ok) {
   process.exit(1);
 }
 console.log("Google sign-in enabled");
+console.log("Add these Authorized JavaScript origins in Google Cloud:");
+console.log("https://house-exp.vercel.app");
+console.log("https://homeledger-olive.vercel.app");
+console.log("http://localhost:3000");
 console.log(`Add this Authorized redirect URI in Google Cloud:`);
 console.log(`https://${projectRef}.supabase.co/auth/v1/callback`);

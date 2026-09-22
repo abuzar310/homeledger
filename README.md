@@ -2,7 +2,7 @@
 
 Simple spending. A better home.
 
-Live: https://homeledger-olive.vercel.app
+Live: https://house-exp.vercel.app
 GitHub: https://github.com/abuzar310/homeledger
 
 A mobile-first household expense app. Add Milk and ₹54 in a few seconds. The app organises the rest.
@@ -17,7 +17,7 @@ A mobile-first household expense app. Add Milk and ₹54 in a few seconds. The a
 1. Copy `.env.example` to `.env.local` and add your Supabase URL and anon key.
 2. In the Supabase SQL editor, run `supabase/migrations/0001_init.sql` then `0002_profiles.sql`.
 3. Email sign-in works immediately when confirmation is off (autoconfirm).
-4. Google: create a Web OAuth client in Google Cloud. Authorized JavaScript origins are your app URL and `http://localhost:3000`. Authorized redirect URI is `https://<project-ref>.supabase.co/auth/v1/callback`. Put the client ID and secret in `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` and run `node scripts/enable-google-auth.mjs`.
+4. Google: create a Web OAuth client in Google Cloud. Authorized JavaScript origins must include `https://house-exp.vercel.app`, `https://homeledger-olive.vercel.app`, and `http://localhost:3000`. Authorized redirect URI is `https://<project-ref>.supabase.co/auth/v1/callback`. Put the client ID and secret in `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` and run `node scripts/enable-google-auth.mjs`.
 5. Install and start:
 
 ```bash
