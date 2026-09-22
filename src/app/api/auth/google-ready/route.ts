@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 
 export async function GET() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  if (!url) return NextResponse.json({ ready: false });
+  if (!url) {
+    return NextResponse.json({ ready: false }, { headers: { "Cache-Control": "public, max-age=60" } });
+  }
 
   const authorize = new URL("/auth/v1/authorize", url);
   authorize.searchParams.set("provider", "google");
@@ -10,7 +12,8 @@ export async function GET() {
 
   const res = await fetch(authorize, { redirect: "manual" });
   const text = await res.text();
-  return NextResponse.json({
-    ready: !/not enabled|unsupported provider/i.test(text),
-  });
+  return NextResponse.json(
+    { ready: !/not enabled|unsupported provider/i.test(text) },
+    { headers: { "Cache-Control": "public, max-age=60" } },
+  );
 }

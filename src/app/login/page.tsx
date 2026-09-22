@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Field, PrimaryButton, TextInput } from "@/components/ui";
 import { GOOGLE_CLIENT_ID, loadGsi } from "@/lib/google";
@@ -25,6 +25,13 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [gsiReady, setGsiReady] = useState(false);
+
+  useEffect(() => {
+    loadGsi()
+      .then(() => setGsiReady(true))
+      .catch((err) => setError(err instanceof Error ? err.message : "Could not load Google sign-in."));
+  }, []);
 
   async function withGoogle() {
     setError(null);
@@ -33,7 +40,7 @@ export default function LoginPage() {
       return;
     }
     try {
-      await loadGsi();
+      if (!window.google?.accounts?.oauth2) await loadGsi();
       const client = window.google?.accounts.oauth2.initCodeClient({
         client_id: GOOGLE_CLIENT_ID,
         scope: "openid email profile",
@@ -118,11 +125,11 @@ export default function LoginPage() {
       <button
         type="button"
         onClick={() => void withGoogle()}
-        disabled={busy}
+        disabled={busy || !gsiReady}
         className="press mt-8 inline-flex min-h-12 w-full items-center justify-center gap-3 rounded-xl border border-line bg-surface text-[16px] font-semibold disabled:opacity-45"
       >
         <GoogleMark />
-        Continue with Google
+        {gsiReady ? "Continue with Google" : "Loading Google…"}
       </button>
 
       <p className="my-6 text-center text-[13px] text-muted">or email</p>

@@ -19,7 +19,7 @@ export default function MerchantsPage() {
     const supabase = createClient();
     const month = monthKey();
     Promise.all([
-      supabase.from("merchants").select("*").eq("household_id", household.id).order("name"),
+      supabase.from("merchants").select("id, household_id, name, normalized_name").eq("household_id", household.id).order("name"),
       supabase
         .from("transactions")
         .select("merchant_id, amount")

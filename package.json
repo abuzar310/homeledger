@@ -9,6 +9,7 @@
     "lint": "eslint",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
+    "check:perf": "node scripts/check-perf.mjs",
     "schema": "node scripts/apply-schema.mjs",
     "seed": "node scripts/seed-demo.mjs"
   },

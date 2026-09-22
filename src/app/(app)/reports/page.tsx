@@ -23,17 +23,21 @@ function ReportsInner() {
   const { household, catalogs } = useHousehold();
   const [rows, setRows] = useState<Transaction[]>([]);
   const [previous, setPrevious] = useState(0);
+  const [busy, setBusy] = useState(true);
 
   useEffect(() => {
     if (!household) return;
     const supabase = createClient();
+    setBusy(true);
     Promise.all([
       fetchMonthTransactions(supabase, household.id, month),
       previousMonthTotal(supabase, household.id, month),
-    ]).then(([txs, prev]) => {
-      setRows(txs);
-      setPrevious(prev);
-    });
+    ])
+      .then(([txs, prev]) => {
+        setRows(txs);
+        setPrevious(prev);
+      })
+      .finally(() => setBusy(false));
   }, [household, month]);
 
   const total = sum(rows);
@@ -46,7 +50,13 @@ function ReportsInner() {
       <ScreenTitle title="Reports" />
       <MonthPicker value={month} onChange={(next) => router.replace(`/reports?month=${next}`)} />
 
-      {!rows.length ? (
+      {busy ? (
+        <div className="space-y-3" aria-busy="true" aria-label="Loading reports">
+          <div className="skeleton h-16 rounded-xl" />
+          <div className="skeleton h-32 rounded-xl" />
+          <div className="skeleton h-40 rounded-xl" />
+        </div>
+      ) : !rows.length ? (
         <EmptyState
           title="No reports yet"
           body="Add some expenses to see your spending reports."

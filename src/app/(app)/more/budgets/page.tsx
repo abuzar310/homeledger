@@ -19,7 +19,7 @@ export default function BudgetsPage() {
     if (!household) return;
     const { data } = await createClient()
       .from("budgets")
-      .select("*")
+      .select("id, household_id, category_id, year_month, amount")
       .eq("household_id", household.id)
       .eq("year_month", monthStart(month));
     setBudgets(((data ?? []) as Budget[]).map((b) => ({ ...b, amount: Number(b.amount) })));
@@ -30,7 +30,7 @@ export default function BudgetsPage() {
     const supabase = createClient();
     supabase
       .from("budgets")
-      .select("*")
+      .select("id, household_id, category_id, year_month, amount")
       .eq("household_id", household.id)
       .eq("year_month", monthStart(month))
       .then(({ data }) => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { User } from "@supabase/supabase-js";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { ensureHousehold, loadCatalogs } from "@/lib/household";
@@ -28,7 +28,7 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const refresh = async () => {
+  const load = useCallback(async (fresh: boolean) => {
     if (!isSupabaseConfigured()) {
       setError("The household database is not connected yet.");
       setLoading(false);
@@ -48,19 +48,21 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
     setUser(current);
     const [nextHousehold, nextCatalogs, nextProfile] = await Promise.all([
       ensureHousehold(supabase),
-      loadCatalogs(supabase),
+      loadCatalogs(supabase, { fresh }),
       loadProfile(supabase, current),
     ]);
     setHousehold(nextHousehold);
     setCatalogs(nextCatalogs);
     setProfile(nextProfile);
-  };
+  }, []);
+
+  const refresh = useCallback(() => load(true), [load]);
 
   useEffect(() => {
-    refresh()
+    load(false)
       .catch((err: Error) => setError(err.message || "Could not load your home"))
       .finally(() => setLoading(false));
-  }, []);
+  }, [load]);
 
   const value = useMemo(
     () => ({
@@ -73,7 +75,7 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
       error,
       refresh,
     }),
-    [household, catalogs, user, profile, loading, error],
+    [household, catalogs, user, profile, loading, error, refresh],
   );
 
   if (error && !household) {

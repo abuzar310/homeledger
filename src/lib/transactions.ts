@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { categorizeExpense } from "@/lib/categorization";
 import { normalizeMerchantName } from "@/lib/categorization/rules";
+import { clearMonthCache } from "@/lib/reports";
 import type { Catalogs, Merchant, PurchaseChannel, Transaction, TransactionItem } from "@/lib/types";
 
 const TX_SELECT = `
@@ -11,6 +12,16 @@ const TX_SELECT = `
   payment_method:payment_methods(*),
   items:transaction_items(*),
   receipts(*)
+`;
+
+const TX_LIST_SELECT = `
+  id, household_id, name, amount, occurred_on, category_id, subcategory_id,
+  merchant_id, payment_method_id, purchase_channel, notes, needs_review,
+  categorization_source, created_at,
+  category:categories(id, name, color, group_name),
+  subcategory:subcategories(id, name),
+  merchant:merchants(id, name),
+  payment_method:payment_methods(id, name)
 `;
 
 export type TransactionFilters = {
@@ -51,7 +62,7 @@ export async function listTransactions(
 ): Promise<Transaction[]> {
   let query = supabase
     .from("transactions")
-    .select(TX_SELECT)
+    .select(TX_LIST_SELECT)
     .eq("household_id", householdId)
     .order("occurred_on", { ascending: false })
     .order("created_at", { ascending: false })
@@ -83,7 +94,7 @@ export async function listTransactions(
 
   const { data, error } = await query;
   if (error) throw error;
-  return ((data ?? []) as Transaction[]).map(normalizeTx);
+  return ((data ?? []) as unknown as Transaction[]).map(normalizeTx);
 }
 
 export async function getTransaction(
@@ -109,7 +120,10 @@ export async function saveExpense(
     .maybeSingle();
   if (existing) return normalizeTx(existing as Transaction);
 
-  const { data: merchants } = await supabase.from("merchants").select("*").eq("household_id", householdId);
+  const { data: merchants } = await supabase
+    .from("merchants")
+    .select("id, household_id, name, normalized_name, default_category_id, default_subcategory_id, default_channel")
+    .eq("household_id", householdId);
   const suggestion = input.userCategorized
     ? null
     : await categorizeExpense(
@@ -166,6 +180,8 @@ export async function saveExpense(
     throw error;
   }
 
+  clearMonthCache();
+
   if (input.items?.length) {
     const rows = input.items
       .filter((item) => item.name.trim() && item.amount > 0)
@@ -179,11 +195,12 @@ export async function saveExpense(
       const { error: itemError } = await supabase.from("transaction_items").insert(rows);
       if (itemError) throw itemError;
     }
+    const saved = await getTransaction(supabase, data.id);
+    if (!saved) throw new Error("Could not load saved expense");
+    return saved;
   }
 
-  const saved = await getTransaction(supabase, data.id);
-  if (!saved) throw new Error("Could not load saved expense");
-  return saved;
+  return normalizeTx(data as Transaction);
 }
 
 export async function updateExpense(
@@ -210,12 +227,14 @@ export async function updateExpense(
   if (error) throw error;
   const saved = await getTransaction(supabase, id);
   if (!saved) throw new Error("Expense not found");
+  clearMonthCache();
   return saved;
 }
 
 export async function deleteExpense(supabase: SupabaseClient, id: string): Promise<void> {
   const { error } = await supabase.from("transactions").delete().eq("id", id);
   if (error) throw error;
+  clearMonthCache();
 }
 
 export async function replaceItems(

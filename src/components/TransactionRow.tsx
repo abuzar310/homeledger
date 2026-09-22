@@ -1,3 +1,4 @@
+import { memo } from "react";
 import Link from "next/link";
 import { formatINR } from "@/lib/money";
 import { formatRelativeDay } from "@/lib/dates";
@@ -5,7 +6,7 @@ import { categoryIcon } from "@/lib/icons";
 import type { Transaction } from "@/lib/types";
 import { IconWell } from "./ui";
 
-export function TransactionRow({
+export const TransactionRow = memo(function TransactionRow({
   tx,
   showDate = false,
 }: {
@@ -32,4 +33,4 @@ export function TransactionRow({
       <p className="shrink-0 text-[16px] font-semibold tabular-nums">{formatINR(tx.amount)}</p>
     </Link>
   );
-}
+});

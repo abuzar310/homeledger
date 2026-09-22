@@ -31,7 +31,14 @@ export default function TransactionDetailPage() {
       .then(({ data }) => setReceiptUrl(data?.signedUrl ?? null));
   }, [tx]);
 
-  if (!tx) return <p className="text-muted">Loading expense…</p>;
+  if (!tx) {
+    return (
+      <div className="space-y-3" aria-busy="true" aria-label="Loading expense">
+        <div className="skeleton h-28 rounded-xl" />
+        <div className="skeleton h-48 rounded-xl" />
+      </div>
+    );
+  }
 
   const items = tx.items ?? [];
   const itemTotal = items.reduce((s, i) => s + i.amount, 0);

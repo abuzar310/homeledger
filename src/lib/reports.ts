@@ -22,22 +22,42 @@ export type MerchantSpend = {
   count: number;
 };
 
+const MONTH_MS = 60 * 1000;
+const monthMemo = new Map<string, { at: number; rows: Transaction[] }>();
+const prevMemo = new Map<string, { at: number; total: number }>();
+
+export function clearMonthCache() {
+  monthMemo.clear();
+  prevMemo.clear();
+}
+
 export async function fetchMonthTransactions(
   supabase: SupabaseClient,
   householdId: string,
   month: string,
+  categoryId?: string,
 ): Promise<Transaction[]> {
-  const { data, error } = await supabase
+  const key = `${householdId}:${month}:${categoryId ?? ""}`;
+  const hit = monthMemo.get(key);
+  if (hit && Date.now() - hit.at < MONTH_MS) return hit.rows;
+
+  let query = supabase
     .from("transactions")
-    .select("*, category:categories(*), subcategory:subcategories(*), merchant:merchants(*), payment_method:payment_methods(*)")
+    .select(
+      "id, household_id, name, amount, occurred_on, category_id, subcategory_id, merchant_id, payment_method_id, notes, needs_review, category:categories(id, name, color, group_name), subcategory:subcategories(id, name), merchant:merchants(id, name), payment_method:payment_methods(id, name)",
+    )
     .eq("household_id", householdId)
     .gte("occurred_on", monthStart(month))
-    .lte("occurred_on", monthEnd(month))
+    .lte("occurred_on", monthEnd(month));
+  if (categoryId) query = query.eq("category_id", categoryId);
+  const { data, error } = await query
     .order("occurred_on", { ascending: false })
     .order("created_at", { ascending: false })
     .limit(2000);
   if (error) throw error;
-  return (data ?? []).map((tx) => ({ ...tx, amount: Number(tx.amount) })) as Transaction[];
+  const rows = (data ?? []).map((tx) => ({ ...tx, amount: Number(tx.amount) })) as unknown as Transaction[];
+  monthMemo.set(key, { at: Date.now(), rows });
+  return rows;
 }
 
 export function summarizeMonth(transactions: Transaction[], month: string, today = todayISO()): MonthSummary {
@@ -99,6 +119,9 @@ export async function previousMonthTotal(
   month: string,
 ): Promise<number> {
   const prev = previousMonth(month);
+  const key = `${householdId}:${prev}`;
+  const hit = prevMemo.get(key);
+  if (hit && Date.now() - hit.at < MONTH_MS) return hit.total;
   const { data, error } = await supabase
     .from("transactions")
     .select("amount")
@@ -106,7 +129,9 @@ export async function previousMonthTotal(
     .gte("occurred_on", monthStart(prev))
     .lte("occurred_on", monthEnd(prev));
   if (error) throw error;
-  return sum((data ?? []).map((row) => ({ amount: Number(row.amount) })));
+  const total = sum((data ?? []).map((row) => ({ amount: Number(row.amount) })));
+  prevMemo.set(key, { at: Date.now(), total });
+  return total;
 }
 
 export function sum(rows: { amount: number }[]): number {

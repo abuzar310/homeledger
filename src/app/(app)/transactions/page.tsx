@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { SlidersHorizontal } from "lucide-react";
+import dynamic from "next/dynamic";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { EmptyState } from "@/components/EmptyState";
-import { FilterSheet } from "@/components/FilterSheet";
 import { useHousehold } from "@/components/HouseholdProvider";
 import { MonthPicker } from "@/components/MonthPicker";
 import { TransactionRow } from "@/components/TransactionRow";
@@ -15,12 +15,17 @@ import { createClient } from "@/lib/supabase/client";
 import { listTransactions, type TransactionFilters } from "@/lib/transactions";
 import type { Transaction } from "@/lib/types";
 
+const FilterSheet = dynamic(() => import("@/components/FilterSheet").then((m) => ({ default: m.FilterSheet })), {
+  ssr: false,
+});
+
 function TransactionsInner() {
   const router = useRouter();
   const params = useSearchParams();
   const month = params.get("month") || monthKey();
   const { household, catalogs } = useHousehold();
   const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [filters, setFilters] = useState<TransactionFilters>({});
   const [openFilters, setOpenFilters] = useState(false);
   const [rows, setRows] = useState<Transaction[]>([]);
@@ -33,10 +38,15 @@ function TransactionsInner() {
       ...filters,
       from: filters.from || monthStart(month),
       to: filters.to || monthEnd(month),
-      query,
+      query: debouncedQuery,
     }),
-    [filters, month, query],
+    [filters, month, debouncedQuery],
   );
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQuery(query), 200);
+    return () => clearTimeout(t);
+  }, [query]);
 
   useEffect(() => {
     if (!household) return;
@@ -74,7 +84,11 @@ function TransactionsInner() {
       />
 
       {busy && !rows.length ? (
-        <p className="text-muted">Loading expenses…</p>
+        <div className="space-y-3" aria-busy="true" aria-label="Loading expenses">
+          <div className="skeleton h-16 rounded-2xl" />
+          <div className="skeleton h-16 rounded-2xl" />
+          <div className="skeleton h-16 rounded-2xl" />
+        </div>
       ) : !rows.length ? (
         <EmptyState
           title="No expenses found."
@@ -117,12 +131,14 @@ function TransactionsInner() {
         </div>
       )}
 
-      <FilterSheet
-        open={openFilters}
-        value={filters}
-        onClose={() => setOpenFilters(false)}
-        onApply={setFilters}
-      />
+      {openFilters ? (
+        <FilterSheet
+          open={openFilters}
+          value={filters}
+          onClose={() => setOpenFilters(false)}
+          onApply={setFilters}
+        />
+      ) : null}
       <p className="sr-only">{catalogs.categories.length} categories available</p>
     </div>
   );
