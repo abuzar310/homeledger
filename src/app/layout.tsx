@@ -1,0 +1,30 @@
+import type { Metadata, Viewport } from "next";
+import type { ReactNode } from "react";
+import { Plus_Jakarta_Sans } from "next/font/google";
+import "./globals.css";
+
+const sans = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  variable: "--font-sans",
+});
+
+export const metadata: Metadata = {
+  title: "HomeLedger",
+  description: "Simple spending. A better home.",
+  applicationName: "HomeLedger",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  themeColor: "#2F6B4F",
+};
+
+export default function RootLayout({ children }: { children: ReactNode }) {
+  return (
+    <html lang="en" className={`${sans.variable} h-full antialiased`}>
+      <body className="min-h-full bg-bg font-sans text-ink">{children}</body>
+    </html>
+  );
+}

@@ -1,0 +1,34 @@
+import Link from "next/link";
+import { formatINR } from "@/lib/money";
+import { formatRelativeDay } from "@/lib/dates";
+import type { Transaction } from "@/lib/types";
+
+export function TransactionRow({
+  tx,
+  showDate = false,
+}: {
+  tx: Transaction;
+  showDate?: boolean;
+}) {
+  const meta = [
+    showDate ? formatRelativeDay(tx.occurred_on) : null,
+    tx.category?.name,
+    tx.payment_method?.name,
+    tx.needs_review ? "Needs review" : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  return (
+    <Link
+      href={`/transactions/${tx.id}`}
+      className="flex min-h-16 items-center justify-between gap-3 border-b border-line py-3 last:border-b-0"
+    >
+      <div className="min-w-0">
+        <p className="truncate text-[16px] font-medium text-ink">{tx.name}</p>
+        <p className="truncate text-[13px] text-muted">{meta || "Expense"}</p>
+      </div>
+      <p className="shrink-0 text-[16px] font-semibold tabular-nums">{formatINR(tx.amount)}</p>
+    </Link>
+  );
+}

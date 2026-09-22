@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #f6f3ee;
+  --surface: #ffffff;
+  --ink: #1f1c18;
+  --muted: #6b645c;
+  --line: #e6e0d6;
+  --green: #2f6b4f;
+  --green-soft: #e7f1eb;
+  --green-deep: #24553e;
+  --warn: #b54708;
+  --danger: #b42318;
+  --shadow: 0 8px 24px rgba(31, 28, 24, 0.06);
+  --nav-h: 84px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-green: var(--green);
+  --color-green-soft: var(--green-soft);
+  --color-green-deep: var(--green-deep);
+  --color-warn: var(--warn);
+  --color-danger: var(--danger);
+  --font-sans: var(--font-sans);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--ink);
+  min-height: 100%;
+}
+
+body {
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.45;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  touch-action: manipulation;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.sheet-scrim {
+  background: rgba(31, 28, 24, 0.36);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
