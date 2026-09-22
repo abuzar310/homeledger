@@ -1,7 +1,17 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC = new Set(["/login", "/signup", "/auth/callback"]);
+const PUBLIC = new Set([
+  "/",
+  "/login",
+  "/signup",
+  "/about",
+  "/llms.txt",
+  "/llms-full.txt",
+  "/robots.txt",
+  "/sitemap.xml",
+  "/auth/callback",
+]);
 
 export async function updateSession(request: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
