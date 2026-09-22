@@ -40,7 +40,7 @@ export function FilterSheet({
 
   return (
     <BottomSheet open={open} title="Filters" onClose={onClose}>
-      <div className="flex max-h-[70vh] flex-col">
+      <div className="flex h-[min(32rem,70vh)] flex-col overflow-hidden">
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pb-2">
         <Field label="From">
           <TextInput type="date" value={draft.from ?? ""} onChange={(e) => setDraft({ ...draft, from: e.target.value })} />
