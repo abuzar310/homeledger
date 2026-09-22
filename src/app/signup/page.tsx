@@ -31,17 +31,23 @@ export default function SignupPage() {
             }
             setBusy(true);
             setError(null);
-            const { data, error: authError } = await createClient().auth.signUp({ email, password });
-            setBusy(false);
+            const supabase = createClient();
+            const { data, error: authError } = await supabase.auth.signUp({ email, password });
             if (authError) {
+              setBusy(false);
               setError("Could not create the account. Try another email.");
               return;
             }
-            if (data.session) {
-              router.replace("/home");
-              return;
+            if (!data.session) {
+              const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+              if (signInError) {
+                setBusy(false);
+                setCheckEmail(true);
+                return;
+              }
             }
-            setCheckEmail(true);
+            setBusy(false);
+            router.replace("/home");
           }}
         >
           <Field label="Email">
