@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { ensureHousehold, loadCatalogs } from "@/lib/household";
 import type { Catalogs, Household } from "@/lib/types";
 
@@ -24,6 +24,11 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
   const refresh = async () => {
+    if (!isSupabaseConfigured()) {
+      setError("The household database is not connected yet.");
+      setLoading(false);
+      return;
+    }
     const supabase = createClient();
     const {
       data: { user },
@@ -51,6 +56,15 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
     () => ({ household, catalogs, userId, loading, error, refresh }),
     [household, catalogs, userId, loading, error],
   );
+
+  if (error && !household) {
+    return (
+      <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-5">
+        <h1 className="text-2xl font-semibold">HomeLedger</h1>
+        <p className="mt-2 text-muted">{error}</p>
+      </main>
+    );
+  }
 
   return <HouseholdContext.Provider value={value}>{children}</HouseholdContext.Provider>;
 }

@@ -2,6 +2,9 @@
 
 Simple spending. A better home.
 
+Live: https://homeledger-olive.vercel.app
+GitHub: https://github.com/abuzar310/homeledger
+
 A mobile-first household expense app. Add Milk and ₹54 in a few seconds. The app organises the rest.
 
 ## Stack
