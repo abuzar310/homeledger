@@ -41,7 +41,7 @@ function HomeInner() {
 
   const summary = summarizeMonth(rows, month);
   const categories = spendByCategory(rows, catalogs.categories).slice(0, 6);
-  const change = percentChange(summary.total, previous);
+  const change = previous > 0 ? percentChange(summary.total, previous) : null;
   const recent = rows.slice(0, 6);
 
   return (
