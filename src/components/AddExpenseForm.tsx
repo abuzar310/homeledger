@@ -39,7 +39,10 @@ export function AddExpenseForm() {
   );
 
   async function submit() {
-    if (!household || !userId) return;
+    if (!household || !userId) {
+      setError("Your home is still loading. Try again in a moment.");
+      return;
+    }
     const parsed = parseAmount(amount);
     if (!name.trim()) {
       setError("Please enter what you spent on.");
@@ -267,8 +270,8 @@ export function AddExpenseForm() {
           void submit();
         }}
       />
-      <PrimaryButton type="submit" disabled={status === "saving" || status === "saved"}>
-        {status === "saving" ? "Saving…" : status === "saved" ? "✓ Saved" : "Add expense"}
+      <PrimaryButton type="submit" disabled={status === "saving" || status === "saved" || !household || !userId}>
+        {status === "saving" ? "Saving…" : status === "saved" ? "✓ Saved" : !household ? "Loading home…" : "Add expense"}
       </PrimaryButton>
     </form>
   );

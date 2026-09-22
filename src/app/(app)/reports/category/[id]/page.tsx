@@ -6,6 +6,7 @@ import { useHousehold } from "@/components/HouseholdProvider";
 import { TransactionRow } from "@/components/TransactionRow";
 import { Card } from "@/components/ui";
 import { formatMonthLabel, monthKey } from "@/lib/dates";
+import { CountUp } from "@/components/CountUp";
 import { formatINR } from "@/lib/money";
 import { fetchMonthTransactions, sum } from "@/lib/reports";
 import { createClient } from "@/lib/supabase/client";
@@ -46,7 +47,9 @@ function CategoryReportInner() {
       <div>
         <h1 className="text-[22px] font-semibold">{category?.name ?? "Category"}</h1>
         <p className="text-muted">{formatMonthLabel(month)}</p>
-        <p className="mt-1 text-[28px] font-semibold tabular-nums">{formatINR(sum(rows))}</p>
+        <p className="mt-1 text-[28px] font-semibold tabular-nums">
+          <CountUp value={sum(rows)} />
+        </p>
       </div>
       {busy && !rows.length ? (
         <div className="space-y-3" aria-busy="true" aria-label="Loading category">

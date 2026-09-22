@@ -8,7 +8,7 @@ import { categoryIcon } from "@/lib/icons";
 import { monthKey } from "@/lib/dates";
 
 export default function CategoriesPage() {
-  const { catalogs } = useHousehold();
+  const { catalogs, loading } = useHousehold();
   const month = monthKey();
   const groups = new Map<string, typeof catalogs.categories>();
   for (const category of catalogs.categories) {
@@ -21,7 +21,14 @@ export default function CategoriesPage() {
     <div className="space-y-6">
       <ScreenTitle title="Categories" />
       <p className="text-[15px] text-muted">These help organise expenses automatically. You can still change any expense.</p>
-      {[...groups.entries()].map(([group, cats]) => (
+      {loading || !catalogs.categories.length ? (
+        <div className="space-y-3" aria-busy="true" aria-label="Loading categories">
+          <div className="skeleton h-14" />
+          <div className="skeleton h-14" />
+          <div className="skeleton h-14" />
+        </div>
+      ) : null}
+      {!loading && [...groups.entries()].map(([group, cats]) => (
         <section key={group}>
           <h2 className="mb-1 text-[12px] font-semibold uppercase tracking-wide text-muted">{group}</h2>
           <ul className="divide-y divide-line border-y border-line">
