@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Banknote, BookOpen, ChevronRight, Download, HelpCircle, Settings, Store, Tag, WalletCards } from "lucide-react";
+import { Banknote, BookOpen, ChevronRight, Download, HelpCircle, Store, Tag, UserRound, WalletCards } from "lucide-react";
 import { IconWell, ScreenTitle } from "@/components/ui";
 import type { LucideIcon } from "lucide-react";
 
@@ -22,7 +22,7 @@ const SECTIONS: { title: string; items: { href: string; label: string; icon: Luc
   {
     title: "App",
     items: [
-      { href: "/more/settings", label: "App settings", icon: Settings },
+      { href: "/more/settings", label: "Profile", icon: UserRound },
       { href: "/more/help", label: "Help & support", icon: HelpCircle },
       { href: "/more/about", label: "About", icon: BookOpen },
     ],

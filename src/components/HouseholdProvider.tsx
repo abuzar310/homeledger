@@ -1,14 +1,18 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import type { User } from "@supabase/supabase-js";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { ensureHousehold, loadCatalogs } from "@/lib/household";
+import { loadProfile, type Profile } from "@/lib/profile";
 import type { Catalogs, Household } from "@/lib/types";
 
 type Ctx = {
   household: Household | null;
   catalogs: Catalogs;
+  user: User | null;
   userId: string | null;
+  profile: Profile | null;
   loading: boolean;
   error: string | null;
   refresh: () => Promise<void>;
@@ -19,7 +23,8 @@ const HouseholdContext = createContext<Ctx | null>(null);
 export function HouseholdProvider({ children }: { children: ReactNode }) {
   const [household, setHousehold] = useState<Household | null>(null);
   const [catalogs, setCatalogs] = useState<Catalogs>({ categories: [], subcategories: [], paymentMethods: [] });
-  const [userId, setUserId] = useState<string | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,24 +35,25 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
       return;
     }
     const supabase = createClient();
-    let {
-      data: { user },
+    const {
+      data: { user: current },
     } = await supabase.auth.getUser();
-    if (!user) {
-      const { data, error: anonError } = await supabase.auth.signInAnonymously();
-      if (anonError) throw anonError;
-      user = data.user;
-    }
-    if (!user) {
-      setError("Could not open the household.");
+    if (!current) {
+      setUser(null);
+      setProfile(null);
+      setHousehold(null);
       setLoading(false);
       return;
     }
-    setUserId(user.id);
-    const nextHousehold = await ensureHousehold(supabase);
-    const nextCatalogs = await loadCatalogs(supabase);
+    setUser(current);
+    const [nextHousehold, nextCatalogs, nextProfile] = await Promise.all([
+      ensureHousehold(supabase),
+      loadCatalogs(supabase),
+      loadProfile(supabase, current),
+    ]);
     setHousehold(nextHousehold);
     setCatalogs(nextCatalogs);
+    setProfile(nextProfile);
   };
 
   useEffect(() => {
@@ -57,8 +63,17 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ household, catalogs, userId, loading, error, refresh }),
-    [household, catalogs, userId, loading, error],
+    () => ({
+      household,
+      catalogs,
+      user,
+      userId: user?.id ?? null,
+      profile,
+      loading,
+      error,
+      refresh,
+    }),
+    [household, catalogs, user, profile, loading, error],
   );
 
   if (error && !household) {

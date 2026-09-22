@@ -23,7 +23,7 @@ const DESKTOP: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/more/merchants", label: "Merchants", icon: Store },
   { href: "/more/payment-methods", label: "Payment methods", icon: CreditCard },
   { href: "/more/export", label: "Export", icon: Download },
-  { href: "/more", label: "Settings", icon: Settings },
+  { href: "/more/settings", label: "Profile", icon: Settings },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {

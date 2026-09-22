@@ -113,6 +113,12 @@ export type Household = {
   created_at: string;
 };
 
+export type Profile = {
+  id: string;
+  full_name: string | null;
+  avatar_url: string | null;
+};
+
 export const CHANNEL_LABELS: Record<PurchaseChannel, string> = {
   online: "Online",
   offline: "Offline",
