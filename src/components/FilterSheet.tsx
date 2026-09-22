@@ -40,7 +40,8 @@ export function FilterSheet({
 
   return (
     <BottomSheet open={open} title="Filters" onClose={onClose}>
-      <div className="space-y-4">
+      <div className="flex max-h-[70vh] flex-col">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pb-2">
         <Field label="From">
           <TextInput type="date" value={draft.from ?? ""} onChange={(e) => setDraft({ ...draft, from: e.target.value })} />
         </Field>
@@ -128,7 +129,8 @@ export function FilterSheet({
             />
           </Field>
         </div>
-        <div className="sticky bottom-0 grid grid-cols-2 gap-3 bg-surface pt-3">
+        </div>
+        <div className="grid grid-cols-2 gap-3 border-t border-line pt-3">
           <SecondaryButton
             onClick={() =>
               setDraft({
