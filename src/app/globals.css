@@ -18,7 +18,13 @@
   --nav-h: 88px;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
   --duration: 180ms;
+  --dur-micro: 160ms;
+  --dur-btn: 180ms;
+  --dur-card: 220ms;
+  --dur-page: 240ms;
+  --dur-sheet: 300ms;
   --z-nav: 40;
   --z-sheet: 50;
 }
@@ -96,14 +102,11 @@ a {
 
 .sheet-scrim {
   background: rgb(0 0 0 / 0.48);
-}
-
-.sheet-panel {
-  animation: sheet-up var(--duration) var(--ease-out);
+  transition: opacity var(--dur-sheet) var(--ease-out);
 }
 
 .press {
-  transition: transform var(--duration) var(--ease-out), opacity var(--duration) var(--ease-out);
+  transition: transform var(--dur-btn) var(--ease-out), opacity var(--dur-btn) var(--ease-out);
 }
 
 .press:active:not(:disabled) {
@@ -112,17 +115,130 @@ a {
 
 .skeleton {
   background: color-mix(in oklab, var(--line) 80%, var(--surface));
+  animation: skeleton-pulse 1.2s var(--ease-out) infinite;
+}
+
+@keyframes skeleton-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.sheet-panel {
+  animation: sheet-up var(--dur-sheet) var(--ease-out);
+}
+
+.sheet-panel.leaving {
+  animation: sheet-down 220ms var(--ease-in) forwards;
+}
+
+.sheet-scrim.leaving {
+  opacity: 0;
 }
 
 @keyframes sheet-up {
   from {
     opacity: 0;
-    transform: translateY(16px);
+    transform: translateY(20px);
   }
   to {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+@keyframes sheet-down {
+  to {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+}
+
+.enter {
+  animation: enter-up var(--dur-card) var(--ease-out) both;
+}
+
+.enter-1 { animation-delay: 40ms; }
+.enter-2 { animation-delay: 80ms; }
+.enter-3 { animation-delay: 120ms; }
+.enter-4 { animation-delay: 160ms; }
+.enter-5 { animation-delay: 200ms; }
+
+@keyframes enter-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.page-sheet {
+  animation: sheet-up var(--dur-page) var(--ease-out);
+}
+
+.row-in {
+  animation: enter-up var(--dur-card) var(--ease-out);
+}
+
+.nav-ico {
+  transition: transform var(--dur-micro) var(--ease-out), color var(--dur-micro) var(--ease-out);
+}
+
+.nav-ico.on {
+  transform: scale(1.08);
+}
+
+.nav-lbl {
+  transition: opacity var(--dur-micro) var(--ease-out), transform var(--dur-micro) var(--ease-out);
+}
+
+.nav-lbl.on {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.nav-lbl.off {
+  opacity: 0.72;
+  transform: translateY(1px);
+}
+
+.add-fab {
+  transition: transform var(--dur-btn) var(--ease-out);
+}
+
+.add-fab.on {
+  transform: rotate(45deg);
+}
+
+.check-pop {
+  animation: check-pop 280ms var(--ease-out);
+}
+
+@keyframes check-pop {
+  0% { transform: scale(0.6); opacity: 0; }
+  70% { transform: scale(1.08); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.bar-fill {
+  width: 0;
+  transition: width 600ms var(--ease-out);
+}
+
+.search-field {
+  transition: box-shadow var(--dur-micro) var(--ease-out), border-color var(--dur-micro) var(--ease-out);
+}
+
+.search-field:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--primary) 18%, transparent);
+}
+
+.offline-bar {
+  animation: enter-up var(--dur-card) var(--ease-out);
 }
 
 @media (prefers-reduced-motion: reduce) {

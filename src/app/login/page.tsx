@@ -1,24 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Field, PrimaryButton, TextInput } from "@/components/ui";
 import { GOOGLE_CLIENT_ID, loadGsi } from "@/lib/google";
 import { createClient } from "@/lib/supabase/client";
 
-function GoogleMark() {
-  return (
-    <svg viewBox="0 0 24 24" className="size-5" aria-hidden>
-      <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.4h6.4c-.3 1.5-1.1 2.8-2.4 3.6v3h3.9c2.3-2.1 3.6-5.2 3.6-8.7z" />
-      <path fill="#34A853" d="M12 24c3.2 0 5.9-1.1 7.9-2.9l-3.9-3c-1.1.7-2.5 1.2-4 1.2-3.1 0-5.7-2.1-6.6-4.9H1.4v3.1C3.4 21.5 7.4 24 12 24z" />
-      <path fill="#FBBC05" d="M5.4 14.4c-.2-.7-.4-1.5-.4-2.4s.1-1.7.4-2.4V6.5H1.4C.5 8.3 0 10.1 0 12s.5 3.7 1.4 5.5l4-3.1z" />
-      <path fill="#EA4335" d="M12 4.8c1.8 0 3.3.6 4.6 1.8l3.4-3.4C17.9 1.2 15.2 0 12 0 7.4 0 3.4 2.5 1.4 6.5l4 3.1C6.3 6.8 8.9 4.8 12 4.8z" />
-    </svg>
-  );
-}
-
 export default function LoginPage() {
   const router = useRouter();
+  const googleBtn = useRef<HTMLDivElement>(null);
   const [mode, setMode] = useState<"in" | "up">("in");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -33,51 +23,52 @@ export default function LoginPage() {
       .catch((err) => setError(err instanceof Error ? err.message : "Could not load Google sign-in."));
   }, []);
 
-  async function withGoogle() {
-    setError(null);
-    if (!GOOGLE_CLIENT_ID) {
-      setError("Google sign-in is not switched on yet. Use email to create your household.");
-      return;
-    }
-    try {
-      if (!window.google?.accounts?.oauth2) await loadGsi();
-      const client = window.google?.accounts.oauth2.initCodeClient({
-        client_id: GOOGLE_CLIENT_ID,
-        scope: "openid email profile",
-        ux_mode: "popup",
-        callback: (resp) => {
-          void (async () => {
-            if (resp.error || !resp.code) {
-              setError("Google sign-in was cancelled.");
-              return;
-            }
-            setBusy(true);
-            try {
-              const exchanged = await fetch("/api/auth/google", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ code: resp.code }),
-              }).then((r) => r.json());
-              if (!exchanged.id_token) throw new Error(exchanged.error || "Google sign-in failed.");
-              const { error: idError } = await createClient().auth.signInWithIdToken({
-                provider: "google",
-                token: exchanged.id_token,
-              });
-              if (idError) throw idError;
-              router.replace("/home");
-              router.refresh();
-            } catch (err) {
-              setBusy(false);
-              setError(err instanceof Error ? err.message : "Google sign-in failed.");
-            }
-          })();
-        },
-      });
-      client?.requestCode();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Google sign-in failed.");
-    }
-  }
+  useEffect(() => {
+    if (!gsiReady || !GOOGLE_CLIENT_ID || !googleBtn.current || !window.google?.accounts?.id) return;
+    const host = googleBtn.current;
+    const finish = async (credential: string) => {
+      setBusy(true);
+      setError(null);
+      try {
+        const { error: idError } = await createClient().auth.signInWithIdToken({
+          provider: "google",
+          token: credential,
+        });
+        if (idError) throw idError;
+        router.replace("/home");
+        router.refresh();
+      } catch (err) {
+        setBusy(false);
+        setError(err instanceof Error ? err.message : "Google sign-in failed.");
+      }
+    };
+
+    window.google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: (resp) => {
+        if (!resp.credential) {
+          setError("Google sign-in was cancelled.");
+          return;
+        }
+        void finish(resp.credential);
+      },
+      auto_select: false,
+      cancel_on_tap_outside: true,
+      context: mode === "up" ? "signup" : "signin",
+      itp_support: true,
+      use_fedcm_for_prompt: true,
+    });
+    host.innerHTML = "";
+    window.google.accounts.id.renderButton(host, {
+      type: "standard",
+      theme: "outline",
+      size: "large",
+      text: "continue_with",
+      shape: "rectangular",
+      width: Math.min(400, Math.max(280, host.clientWidth || 320)),
+      logo_alignment: "left",
+    });
+  }, [gsiReady, mode, router]);
 
   async function withEmail() {
     setError(null);
@@ -122,15 +113,21 @@ export default function LoginPage() {
       <h1 className="mt-1 text-[28px] font-semibold tracking-tight">Your home&apos;s spending</h1>
       <p className="mt-2 text-[15px] text-muted">Sign in so each family keeps their own expenses.</p>
 
-      <button
-        type="button"
-        onClick={() => void withGoogle()}
-        disabled={busy || !gsiReady}
-        className="press mt-8 inline-flex min-h-12 w-full items-center justify-center gap-3 rounded-xl border border-line bg-surface text-[16px] font-semibold disabled:opacity-45"
-      >
-        <GoogleMark />
-        {gsiReady ? "Continue with Google" : "Loading Google…"}
-      </button>
+      <div className="mt-8 min-h-12 w-full" aria-busy={!gsiReady}>
+        {GOOGLE_CLIENT_ID ? (
+          <div ref={googleBtn} className="flex w-full justify-center overflow-hidden rounded-xl [&>div]:w-full" />
+        ) : (
+          <p className="rounded-xl border border-line bg-surface px-3 py-3 text-center text-[15px] text-muted">
+            Google sign-in is not switched on yet. Use email to create your household.
+          </p>
+        )}
+        {gsiReady || !GOOGLE_CLIENT_ID ? null : (
+          <p className="text-center text-[13px] text-muted">Loading Google…</p>
+        )}
+      </div>
+      <p className="mt-2 text-center text-[13px] text-muted">
+        Google only shares your email. Prefer a password? Use the form below.
+      </p>
 
       <p className="my-6 text-center text-[13px] text-muted">or email</p>
 

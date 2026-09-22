@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { BarChart3, CreditCard, Download, Home, Menu, Plus, ReceiptText, Store, Tag, UserRound } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
+import { NetworkBanner } from "./NetworkBanner";
 
 const NAV = [
   { href: "/home", label: "Home", icon: Home },
@@ -28,6 +29,7 @@ const DESKTOP: { href: string; label: string; icon: LucideIcon }[] = [
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const adding = pathname === "/add" || pathname.startsWith("/add/");
 
   return (
     <div className="min-h-dvh bg-bg md:flex">
@@ -42,7 +44,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex min-h-11 items-center gap-2.5 rounded-xl px-3 text-[15px] ${
+                className={`press flex min-h-11 items-center gap-2.5 rounded-xl px-3 text-[15px] ${
                   active ? "bg-primary-soft font-semibold text-primary-deep" : "text-ink"
                 }`}
               >
@@ -55,6 +57,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </aside>
 
       <div className="flex min-h-dvh flex-1 flex-col">
+        <NetworkBanner />
         <main className="mx-auto w-full max-w-lg flex-1 px-4 pb-[calc(var(--nav-h)+var(--safe-bottom))] pt-[max(1rem,env(safe-area-inset-top))] md:max-w-3xl md:px-8 md:pb-10">
           {children}
         </main>
@@ -71,11 +74,15 @@ export function AppShell({ children }: { children: ReactNode }) {
               if (item.center) {
                 return (
                   <li key={item.href} className="flex justify-center">
-                    <Link href={item.href} className="press -mt-3 flex flex-col items-center text-[11px] font-semibold text-primary">
+                    <Link
+                      href={adding ? "/home" : item.href}
+                      className="press -mt-3 flex flex-col items-center text-[11px] font-semibold text-primary"
+                      aria-label={adding ? "Close add" : "Add expense"}
+                    >
                       <span className="flex size-14 items-center justify-center rounded-full bg-primary text-on-primary">
-                        <Plus className="size-7" strokeWidth={2.5} aria-hidden />
+                        <Plus className={`add-fab size-7 ${adding ? "on" : ""}`} strokeWidth={2.5} aria-hidden />
                       </span>
-                      <span className="mt-1">Add</span>
+                      <span className="mt-1">{adding ? "Close" : "Add"}</span>
                     </Link>
                   </li>
                 );
@@ -89,8 +96,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                     }`}
                     aria-current={active ? "page" : undefined}
                   >
-                    <Icon className="size-5" aria-hidden />
-                    {item.label}
+                    <Icon className={`nav-ico size-5 ${active ? "on" : ""}`} aria-hidden />
+                    <span className={`nav-lbl ${active ? "on" : "off"}`}>{item.label}</span>
                   </Link>
                 </li>
               );

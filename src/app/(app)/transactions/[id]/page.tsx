@@ -49,7 +49,7 @@ export default function TransactionDetailPage() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="page-sheet space-y-4">
       <button className="min-h-11 text-[15px] font-semibold text-primary" onClick={() => router.back()}>
         Back
       </button>
@@ -151,7 +151,7 @@ export default function TransactionDetailPage() {
       </Card>
 
       {items.length ? (
-        <Card>
+        <Card className="enter">
           <h2 className="mb-2 text-[16px] font-semibold">Items</h2>
           <ul>
             {items.map((item) => (
