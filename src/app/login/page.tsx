@@ -29,6 +29,10 @@ export default function LoginPage() {
     setError(null);
     setBusy(true);
     try {
+      const status = await fetch("/api/auth/google-ready").then((r) => r.json());
+      if (!status?.ready) {
+        throw new Error("provider is not enabled");
+      }
       const supabase = createClient();
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: "google",
