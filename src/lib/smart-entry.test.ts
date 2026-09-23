@@ -18,4 +18,8 @@ describe("parseSmartEntry", () => {
     expect(draft.amount).toBe(450);
     expect(draft.name.toLowerCase()).toContain("groceries");
   });
+
+  it("uses the last number when a name also has digits", () => {
+    expect(parseSmartEntry("iPhone 15 1200").amount).toBe(1200);
+  });
 });

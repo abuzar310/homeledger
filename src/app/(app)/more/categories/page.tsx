@@ -19,12 +19,15 @@ export default function CategoriesPage() {
     <div className="space-y-5">
       <ScreenTitle title="Categories" />
       <p className="text-[15px] text-muted">These help organise expenses automatically. You can still change any expense.</p>
-      {loading || !catalogs.categories.length ? (
+      {loading ? (
         <div className="space-y-3" aria-busy="true" aria-label="Loading categories">
           <div className="skeleton h-14 rounded-2xl" />
           <div className="skeleton h-14 rounded-2xl" />
           <div className="skeleton h-14 rounded-2xl" />
         </div>
+      ) : null}
+      {!loading && !catalogs.categories.length ? (
+        <p className="text-[15px] text-muted">Categories will appear once your home is ready.</p>
       ) : null}
       {!loading &&
         [...groups.entries()].map(([group, cats]) => (

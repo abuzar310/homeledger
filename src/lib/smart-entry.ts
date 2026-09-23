@@ -29,7 +29,9 @@ export function parseSmartEntry(raw: string): SmartDraft {
     }
   }
 
-  const amountMatch = text.match(/(?:₹|rs\.?\s*)?(\d+(?:\.\d{1,2})?)/i);
+  const marked = text.match(/(?:₹|rs\.?\s+)(\d+(?:\.\d{1,2})?)/i);
+  const numbers = [...text.matchAll(/(\d+(?:\.\d{1,2})?)/g)];
+  const amountMatch = marked ?? numbers.at(-1);
   const amount = amountMatch ? parseAmount(amountMatch[1]) : null;
   if (amountMatch) text = text.replace(amountMatch[0], " ");
 
