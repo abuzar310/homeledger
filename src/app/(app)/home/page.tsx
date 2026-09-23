@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { CategoryBars } from "@/components/CategoryBars";
+import { MonthInsight } from "@/components/MonthInsight";
 import { CountUp } from "@/components/CountUp";
 import { EmptyState } from "@/components/EmptyState";
 import { useHousehold } from "@/components/HouseholdProvider";
@@ -105,6 +106,13 @@ function HomeInner() {
                 {summary.count} {summary.count === 1 ? "spend" : "spends"} so far
               </p>
             )}
+            <MonthInsight
+              month={month}
+              total={summary.total}
+              previous={previous}
+              count={summary.count}
+              top={categories.slice(0, 3).map((row) => ({ name: row.category.name, total: row.total }))}
+            />
           </section>
 
           <dl className={`grid grid-cols-3 gap-3 ${enter ? "enter enter-3" : ""}`}>

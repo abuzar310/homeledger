@@ -18,7 +18,8 @@ A mobile-first household expense app. Add Milk and ₹54 in a few seconds. The a
 2. In the Supabase SQL editor, run `supabase/migrations/0001_init.sql` then `0002_profiles.sql`.
 3. Email sign-in works immediately when confirmation is off (autoconfirm).
 4. Google: create a Web OAuth client in Google Cloud. Authorized JavaScript origins are your app URL and `http://localhost:3000`. Authorized redirect URI is `https://<project-ref>.supabase.co/auth/v1/callback`. Put the client ID and secret in `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` and run `node scripts/enable-google-auth.mjs`.
-5. Install and start:
+5. Optional Gemini: create a Google AI Studio key and set `GOOGLE_API_KEY` in `.env.local` and Vercel. Never prefix it with `NEXT_PUBLIC_`. The app still works without it.
+6. Install and start:
 
 ```bash
 npm install
@@ -48,7 +49,7 @@ This needs `SUPABASE_SERVICE_ROLE_KEY` in the environment. Never put that key in
 
 - Quick add and detailed add
 - Automatic category, merchant, and channel from local rules
-- Optional AI provider behind `categorizeExpense()` — the app still works if AI is not configured
+- Optional Gemini (`GOOGLE_API_KEY`) on Add (unknown names + receipt fill), Home, and Reports
 - Purchases with optional line items and receipt photos
 - Home, transactions, reports, export (CSV / Excel / PDF)
 - Google or email login, profile, and one isolated household per account

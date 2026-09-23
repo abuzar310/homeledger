@@ -1,41 +1,12 @@
+import { requestCategorize } from "@/lib/ai-client";
 import type { CategorizeInput, CategorizeResult, AiProvider } from "./types";
 
 class EnvAiProvider implements AiProvider {
-  id = process.env.AI_PROVIDER || "none";
+  id = "gemini";
 
   async categorize(input: CategorizeInput): Promise<CategorizeResult | null> {
-    const key = process.env.AI_API_KEY;
-    const endpoint = process.env.AI_API_URL;
-    if (!key || !endpoint) return null;
-
-    try {
-      const res = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${key}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: process.env.AI_MODEL || "default",
-          input,
-        }),
-      });
-      if (!res.ok) return null;
-      const data = (await res.json()) as Partial<CategorizeResult>;
-      if (!data.categoryName) return null;
-      return {
-        categoryName: data.categoryName ?? null,
-        subcategoryName: data.subcategoryName ?? null,
-        merchantName: data.merchantName ?? null,
-        purchaseChannel: data.purchaseChannel ?? null,
-        paymentMethodName: data.paymentMethodName ?? null,
-        confidence: typeof data.confidence === "number" ? data.confidence : 0.6,
-        source: "ai",
-        needsReview: (data.confidence ?? 0.6) < 0.7,
-      };
-    } catch {
-      return null;
-    }
+    if (process.env.VITEST) return null;
+    return requestCategorize(input);
   }
 }
 

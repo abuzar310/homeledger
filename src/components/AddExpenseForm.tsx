@@ -2,6 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { requestReceiptRead } from "@/lib/ai-client";
+import type { ReceiptDraft } from "@/lib/ai-types";
 import { todayISO } from "@/lib/dates";
 import { formatINR, parseAmount } from "@/lib/money";
 import { CHANNELS, CHANNEL_LABELS, type PurchaseChannel } from "@/lib/types";
@@ -28,6 +30,7 @@ export function AddExpenseForm() {
   const [channel, setChannel] = useState<PurchaseChannel | "">("");
   const [items, setItems] = useState<{ name: string; amount: string }[]>([]);
   const [receipt, setReceipt] = useState<File | null>(null);
+  const [scan, setScan] = useState<"idle" | "reading" | "filled" | "skipped">("idle");
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [savedLabel, setSavedLabel] = useState<{ name: string; amount: string; category: string } | null>(null);
   const [requestId, setRequestId] = useState(() => crypto.randomUUID());
@@ -37,6 +40,50 @@ export function AddExpenseForm() {
     () => catalogs.subcategories.filter((s) => !categoryId || s.category_id === categoryId),
     [catalogs.subcategories, categoryId],
   );
+
+  function applyDraft(draft: ReceiptDraft) {
+    if (draft.name) setName(draft.name);
+    if (draft.amount != null) setAmount(String(draft.amount));
+    if (draft.occurredOn) setDate(draft.occurredOn);
+    if (draft.merchantName) setMerchantName(draft.merchantName);
+    if (draft.notes) setNotes(draft.notes);
+    if (draft.categoryName) {
+      const category = catalogs.categories.find(
+        (row) => row.name.toLowerCase() === draft.categoryName!.toLowerCase(),
+      );
+      if (category) {
+        setCategoryId(category.id);
+        const sub = catalogs.subcategories.find(
+          (row) =>
+            row.category_id === category.id &&
+            row.name.toLowerCase() === (draft.subcategoryName ?? "").toLowerCase(),
+        );
+        setSubcategoryId(sub?.id ?? "");
+      }
+    }
+    if (draft.paymentMethodName) {
+      const pay = catalogs.paymentMethods.find(
+        (row) => row.name.toLowerCase() === draft.paymentMethodName!.toLowerCase(),
+      );
+      if (pay) setPaymentMethodId(pay.id);
+    }
+  }
+
+  async function onReceipt(file: File | null) {
+    setReceipt(file);
+    if (!file) {
+      setScan("idle");
+      return;
+    }
+    setScan("reading");
+    const draft = await requestReceiptRead(file);
+    if (draft) {
+      applyDraft(draft);
+      setScan("filled");
+    } else {
+      setScan("skipped");
+    }
+  }
 
   async function submit() {
     if (!household || !userId) {
@@ -163,6 +210,19 @@ export function AddExpenseForm() {
       <Field label="Date">
         <TextInput type="date" value={date} onChange={(e) => setDate(e.target.value)} />
       </Field>
+      <Field label="Receipt photo">
+        <input
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="block w-full text-[15px]"
+          onChange={(e) => void onReceipt(e.target.files?.[0] ?? null)}
+        />
+      </Field>
+      {scan === "reading" ? <p className="text-[15px] text-muted">Reading the receipt…</p> : null}
+      {scan === "filled" ? (
+        <p className="text-[15px] text-accent">Filled from the receipt. Check it before you save.</p>
+      ) : null}
 
       {mode === "detailed" ? (
         <>
@@ -217,14 +277,6 @@ export function AddExpenseForm() {
           </Field>
           <Field label="Notes">
             <TextArea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional" />
-          </Field>
-          <Field label="Receipt photo">
-            <input
-              type="file"
-              accept="image/*"
-              className="block w-full text-[15px]"
-              onChange={(e) => setReceipt(e.target.files?.[0] ?? null)}
-            />
           </Field>
           <div>
             <div className="mb-2 flex items-center justify-between">

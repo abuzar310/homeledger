@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { CategoryBars } from "@/components/CategoryBars";
+import { MonthInsight } from "@/components/MonthInsight";
 import { BarChart3 } from "lucide-react";
 import { EmptyState } from "@/components/EmptyState";
 import { useHousehold } from "@/components/HouseholdProvider";
@@ -76,6 +77,13 @@ function ReportsInner() {
               <CountUp value={total} />
             </p>
             <div className="ledger-rule mt-3" aria-hidden />
+            <MonthInsight
+              month={month}
+              total={total}
+              previous={previous}
+              count={rows.length}
+              top={categories.slice(0, 3).map((row) => ({ name: row.category.name, total: row.total }))}
+            />
           </section>
 
           <Card>
