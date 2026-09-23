@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Banknote, BookOpen, ChevronRight, Download, HelpCircle, Store, Tag, UserRound, WalletCards } from "lucide-react";
+import { Banknote, Bell, BookOpen, ChevronRight, Download, HelpCircle, Repeat, Store, Tag, UserRound, Users, WalletCards } from "lucide-react";
 import { IconWell, ScreenTitle } from "@/components/ui";
 import type { LucideIcon } from "lucide-react";
 
@@ -13,15 +13,20 @@ const SECTIONS: { title: string; items: { href: string; label: string; icon: Luc
       { href: "/more/payment-methods", label: "Payment methods", icon: WalletCards },
       { href: "/more/merchants", label: "Merchants", icon: Store },
       { href: "/more/budgets", label: "Budgets", icon: Banknote },
+      { href: "/more/recurring", label: "Recurring", icon: Repeat },
+      { href: "/more/members", label: "Household members", icon: Users },
     ],
   },
   {
     title: "Data",
-    items: [{ href: "/more/export", label: "Export data", icon: Download }],
+    items: [{ href: "/more/export", label: "Export / Import", icon: Download }],
   },
   {
     title: "Account",
-    items: [{ href: "/more/settings", label: "Profile", icon: UserRound }],
+    items: [
+      { href: "/more/settings", label: "Profile", icon: UserRound },
+      { href: "/more/notifications", label: "Notifications", icon: Bell },
+    ],
   },
   {
     title: "Support",

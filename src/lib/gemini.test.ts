@@ -45,6 +45,7 @@ describe("gemini json helpers", () => {
       categoryName: null,
       subcategoryName: null,
       paymentMethodName: null,
+      items: [],
     });
   });
 

@@ -13,19 +13,24 @@ import { PullRefresh } from "@/components/PullRefresh";
 import { TransactionRow } from "@/components/TransactionRow";
 import { PrimaryButton } from "@/components/ui";
 import { listMonthBudgets } from "@/lib/budgets";
-import { monthKey } from "@/lib/dates";
+import { monthKey, todayISO } from "@/lib/dates";
+import { formatINR } from "@/lib/money";
 import { useSessionOnce } from "@/lib/motion";
+import { notifyIfAllowed, readNotifyPrefs } from "@/lib/notify";
 import { fetchMonthTransactions, spendByCategory, summarizeMonth } from "@/lib/reports";
+import { listRecurring, markRecurringCreated, type RecurringExpense } from "@/lib/recurring";
 import { createClient } from "@/lib/supabase/client";
+import { saveExpense } from "@/lib/transactions";
 import type { Budget, Transaction } from "@/lib/types";
 
 function HomeInner() {
   const router = useRouter();
   const params = useSearchParams();
   const month = params.get("month") || monthKey();
-  const { household, catalogs, loading, refresh } = useHousehold();
+  const { household, catalogs, loading, refresh, userId } = useHousehold();
   const [rows, setRows] = useState<Transaction[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [due, setDue] = useState<RecurringExpense[]>([]);
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState(false);
   const enter = useSessionOnce("hl-home-enter");
@@ -37,12 +42,18 @@ function HomeInner() {
     setBusy(true);
     setError(false);
     try {
-      const [txs, nextBudgets] = await Promise.all([
+      const [txs, nextBudgets, recurring] = await Promise.all([
         fetchMonthTransactions(supabase, household.id, month),
         listMonthBudgets(supabase, household.id, month),
+        listRecurring(supabase, household.id),
       ]);
       setRows(txs);
       setBudgets(nextBudgets);
+      const dueNow = recurring.filter((row) => row.next_on <= todayISO());
+      setDue(dueNow);
+      if (readNotifyPrefs().recurringReminders && dueNow[0]) {
+        notifyIfAllowed("HomeLedger", `${dueNow[0].name} is due. Add it when you are ready.`);
+      }
     } catch {
       setError(true);
     } finally {
@@ -77,6 +88,44 @@ function HomeInner() {
           className="text-[22px] font-semibold tracking-tight"
         />
       </header>
+
+      {!busy && due.length ? (
+        <section className="rounded-2xl border border-line bg-surface p-4">
+          <h2 className="text-[16px] font-semibold">Due this month</h2>
+          <ul className="mt-2 space-y-3">
+            {due.map((bill) => (
+              <li key={bill.id} className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="font-medium">{bill.name}</p>
+                  <p className="text-[13px] text-muted">{formatINR(bill.amount)}</p>
+                </div>
+                <button
+                  type="button"
+                  className="min-h-11 text-[15px] font-semibold text-primary"
+                  onClick={async () => {
+                    if (!household || !userId) return;
+                    const supabase = createClient();
+                    const saved = await saveExpense(supabase, household.id, userId, catalogs, {
+                      name: bill.name,
+                      amount: bill.amount,
+                      occurredOn: todayISO(),
+                      categoryId: bill.category_id,
+                      paymentMethodId: bill.payment_method_id,
+                      clientRequestId: crypto.randomUUID(),
+                    });
+                    await markRecurringCreated(supabase, household.id, bill);
+                    setDue((cur) => cur.filter((row) => row.id !== bill.id));
+                    router.replace(`/home?added=${saved.id}`);
+                    await loadMonth();
+                  }}
+                >
+                  Add this month
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       {loading || busy ? (
         <div className="space-y-4" aria-busy="true" aria-label="Loading this month">

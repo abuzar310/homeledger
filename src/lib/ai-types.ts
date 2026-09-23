@@ -7,6 +7,7 @@ export type ReceiptDraft = {
   categoryName: string | null;
   subcategoryName: string | null;
   paymentMethodName: string | null;
+  items?: { name: string; amount: number }[];
 };
 
 export type InsightInput = {

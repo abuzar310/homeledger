@@ -73,6 +73,14 @@ export function toReceiptDraft(data: Partial<ReceiptDraft> | null): ReceiptDraft
   const occurredOn = isoDate(data.occurredOn);
   const name = clean(data.name);
   if (!name && amount == null && !clean(data.merchantName)) return null;
+  const items = Array.isArray(data.items)
+    ? data.items
+        .map((item) => ({
+          name: clean((item as { name?: unknown }).name) ?? "",
+          amount: typeof (item as { amount?: unknown }).amount === "number" ? Number((item as { amount: number }).amount) : 0,
+        }))
+        .filter((item) => item.name && item.amount > 0)
+    : [];
   return {
     name,
     amount,
@@ -82,6 +90,7 @@ export function toReceiptDraft(data: Partial<ReceiptDraft> | null): ReceiptDraft
     categoryName: clean(data.categoryName),
     subcategoryName: clean(data.subcategoryName),
     paymentMethodName: clean(data.paymentMethodName),
+    items,
   };
 }
 
@@ -143,7 +152,7 @@ export async function parseReceiptWithGemini(mime: string, data: string): Promis
 Pick category/subcategory from:
 ${CATEGORY_GUIDE}
 Return JSON only:
-{"name":"","amount":0,"occurredOn":"","merchantName":"","notes":"","categoryName":"","subcategoryName":"","paymentMethodName":""}`,
+{"name":"","amount":0,"occurredOn":"","merchantName":"","notes":"","categoryName":"","subcategoryName":"","paymentMethodName":"","items":[{"name":"","amount":0}]}`,
     },
   ]);
   return toReceiptDraft(parsed);

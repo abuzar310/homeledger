@@ -117,7 +117,12 @@ function ReportsInner() {
           </section>
 
           <Card>
-            <h2 className="mb-3 text-[16px] font-semibold">{formatMonthLabel(month)} summary</h2>
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 className="text-[16px] font-semibold">{formatMonthLabel(month)} summary</h2>
+              <Link href={`/reports/summary?month=${month}`} className="text-[15px] font-semibold text-primary">
+                Full summary
+              </Link>
+            </div>
             <ul className="space-y-2 text-[15px]">
               <li className="flex justify-between">
                 <span className="text-muted">Expenses</span>

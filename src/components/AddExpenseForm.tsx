@@ -1,11 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { requestReceiptRead } from "@/lib/ai-client";
 import type { ReceiptDraft } from "@/lib/ai-types";
 import { todayISO } from "@/lib/dates";
 import { formatINR, parseAmount } from "@/lib/money";
+import { enqueueOffline } from "@/lib/offline";
 import { parseSmartEntry } from "@/lib/smart-entry";
 import { CHANNELS, CHANNEL_LABELS, type PurchaseChannel } from "@/lib/types";
 import { createClient } from "@/lib/supabase/client";
@@ -13,6 +14,26 @@ import { saveExpense } from "@/lib/transactions";
 import { useHousehold } from "./HouseholdProvider";
 import { SaveStatus } from "./SaveStatus";
 import { Field, PrimaryButton, Select, TextArea, TextInput } from "./ui";
+
+function speechEngine() {
+  const Ctor =
+    typeof window === "undefined"
+      ? null
+      : (window as Window & { webkitSpeechRecognition?: new () => SpeechRec; SpeechRecognition?: new () => SpeechRec })
+          .webkitSpeechRecognition ||
+        (window as Window & { SpeechRecognition?: new () => SpeechRec }).SpeechRecognition;
+  return Ctor ? new Ctor() : null;
+}
+
+type SpeechRec = {
+  lang: string;
+  interimResults: boolean;
+  onresult: ((event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null;
+  onend: (() => void) | null;
+  onerror: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+};
 
 export function AddExpenseForm() {
   const router = useRouter();
@@ -34,22 +55,56 @@ export function AddExpenseForm() {
   const [savedLabel, setSavedLabel] = useState<{ name: string; amount: string; category: string } | null>(null);
   const [requestId, setRequestId] = useState(() => crypto.randomUUID());
   const [error, setError] = useState<string | null>(null);
+  const [listening, setListening] = useState(false);
+  const [voiceNote, setVoiceNote] = useState<string | null>(null);
+  const receiptInput = useRef<HTMLInputElement>(null);
 
   const subs = useMemo(
     () => catalogs.subcategories.filter((s) => !categoryId || s.category_id === categoryId),
     [catalogs.subcategories, categoryId],
   );
 
-  function applySmartName(next: string) {
+  function applySmartName(next: string, force = false) {
     setName(next);
     const draft = parseSmartEntry(next);
-    if (draft.amount != null && !amount) setAmount(String(draft.amount));
-    if (draft.merchantName && !merchantName) setMerchantName(draft.merchantName);
-    if (draft.paymentHint && !paymentMethodId) {
+    if (draft.amount != null && (force || !amount)) setAmount(String(draft.amount));
+    if (draft.merchantName && (force || !merchantName)) setMerchantName(draft.merchantName);
+    if (draft.paymentHint && (force || !paymentMethodId)) {
       const pay = catalogs.paymentMethods.find((p) => p.name.toLowerCase() === draft.paymentHint!.toLowerCase());
       if (pay) setPaymentMethodId(pay.id);
     }
+    const leftover = (draft.name || next).toLowerCase();
+    if (force || !categoryId) {
+      const category = catalogs.categories.find((c) => leftover.includes(c.name.toLowerCase()));
+      if (category) setCategoryId(category.id);
+    }
     if (draft.name && draft.amount != null && draft.name !== next) setName(draft.name);
+  }
+
+  function listen() {
+    const rec = speechEngine();
+    if (!rec) {
+      setError("Voice works in Chrome or the Android app. You can still type the expense.");
+      return;
+    }
+    rec.lang = "en-IN";
+    rec.interimResults = false;
+    rec.onresult = (event) => {
+      const spoken = event.results[0]?.[0]?.transcript?.trim();
+      if (spoken) {
+        applySmartName(spoken, true);
+        setVoiceNote(`Heard: “${spoken}”. Check it, then save.`);
+        setDetails(true);
+      }
+    };
+    rec.onerror = () => {
+      setListening(false);
+      setError("Could not hear that. Type the expense instead.");
+    };
+    rec.onend = () => setListening(false);
+    setError(null);
+    setListening(true);
+    rec.start();
   }
 
   function applyDraft(draft: ReceiptDraft) {
@@ -77,6 +132,10 @@ export function AddExpenseForm() {
         (row) => row.name.toLowerCase() === draft.paymentMethodName!.toLowerCase(),
       );
       if (pay) setPaymentMethodId(pay.id);
+    }
+    if (draft.items?.length) {
+      setItems(draft.items.map((item) => ({ name: item.name, amount: String(item.amount) })));
+      setDetails(true);
     }
   }
 
@@ -111,26 +170,37 @@ export function AddExpenseForm() {
       return;
     }
     setError(null);
+    const payload = {
+      name,
+      amount: parsed,
+      occurredOn: date,
+      notes,
+      categoryId: categoryId || null,
+      subcategoryId: subcategoryId || null,
+      merchantName,
+      paymentMethodId: paymentMethodId || null,
+      purchaseChannel: channel || null,
+      items: items
+        .filter((item) => item.name.trim() && parseAmount(item.amount))
+        .map((item) => ({ name: item.name, amount: parseAmount(item.amount)! })),
+      clientRequestId: requestId,
+      userCategorized: Boolean(categoryId),
+    };
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      enqueueOffline(payload);
+      setSavedLabel({
+        name: name.trim(),
+        amount: formatINR(parsed),
+        category: "Saved on this phone. It will sync when you are online.",
+      });
+      setStatus("saved");
+      window.setTimeout(() => router.replace("/home"), 1100);
+      return;
+    }
     setStatus("saving");
     try {
       const supabase = createClient();
-      const saved = await saveExpense(supabase, household.id, userId, catalogs, {
-        name,
-        amount: parsed,
-        occurredOn: date,
-        notes,
-        categoryId: categoryId || null,
-        subcategoryId: subcategoryId || null,
-        merchantName,
-        paymentMethodId: paymentMethodId || null,
-        purchaseChannel: channel || null,
-        items: items
-          .filter((item) => item.name.trim() && parseAmount(item.amount))
-          .map((item) => ({ name: item.name, amount: parseAmount(item.amount)! })),
-        clientRequestId: requestId,
-        userCategorized: Boolean(categoryId),
-      });
-
+      const saved = await saveExpense(supabase, household.id, userId, catalogs, payload);
       if (receipt) {
         const path = `${household.id}/${saved.id}/${receipt.name}`;
         const { error: uploadError } = await supabase.storage.from("receipts").upload(path, receipt, { upsert: true });
@@ -143,7 +213,6 @@ export function AddExpenseForm() {
           });
         }
       }
-
       setSavedLabel({
         name: saved.name,
         amount: formatINR(saved.amount),
@@ -154,7 +223,13 @@ export function AddExpenseForm() {
         router.replace(`/home?added=${saved.id}`);
       }, 900);
     } catch {
-      setStatus("error");
+      enqueueOffline(payload);
+      setSavedLabel({
+        name: name.trim(),
+        amount: formatINR(parsed),
+        category: "Saved on this phone. It will sync when you are online.",
+      });
+      setStatus("saved");
     }
   }
 
@@ -182,14 +257,25 @@ export function AddExpenseForm() {
       }}
     >
       <Field label="What did you spend on?">
-        <TextInput
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onBlur={(e) => applySmartName(e.target.value)}
-          placeholder="Milk 54"
-          autoFocus
-        />
+        <div className="flex gap-2">
+          <TextInput
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onBlur={(e) => applySmartName(e.target.value)}
+            placeholder="Milk 54"
+            autoFocus
+          />
+          <button
+            type="button"
+            className="press min-h-12 shrink-0 rounded-xl border border-line px-3 text-[15px] font-semibold text-primary"
+            onClick={() => listen()}
+            aria-label={listening ? "Listening" : "Add by voice"}
+          >
+            {listening ? "Listening…" : "Speak"}
+          </button>
+        </div>
       </Field>
+      {voiceNote ? <p className="text-[15px] text-accent">{voiceNote}</p> : null}
       <label className="block">
         <span className="mb-1.5 block text-[15px] font-medium text-ink">Amount</span>
         <div className="flex items-baseline gap-1.5 border-b-2 border-primary pb-2">
@@ -209,6 +295,44 @@ export function AddExpenseForm() {
       <Field label={date === todayISO() ? "Date · Today" : "Date"}>
         <TextInput type="date" value={date} onChange={(e) => setDate(e.target.value)} />
       </Field>
+      <input
+        ref={receiptInput}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="sr-only"
+        onChange={(e) => void onReceipt(e.target.files?.[0] ?? null)}
+      />
+      <button
+        type="button"
+        className="min-h-11 text-[15px] font-semibold text-primary"
+        onClick={() => receiptInput.current?.click()}
+      >
+        Scan receipt
+      </button>
+      {scan === "reading" ? <p className="text-[15px] text-muted">Reading the receipt…</p> : null}
+      {scan === "filled" ? (
+        <div className="rounded-2xl border border-line bg-surface p-4 text-[15px]">
+          <p className="font-semibold">Check the receipt</p>
+          <p className="mt-2">
+            {name || "Expense"} · {amount ? formatINR(Number(amount) || 0) : "—"}
+          </p>
+          {items.length ? (
+            <ul className="mt-2 space-y-1">
+              {items.map((item, i) => (
+                <li key={i} className="flex justify-between">
+                  <span>{item.name}</span>
+                  <span className="tabular-nums">{item.amount}</span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          <p className="mt-2 text-accent">Nothing is saved until you tap Add expense.</p>
+        </div>
+      ) : null}
+      {scan === "skipped" ? (
+        <p className="text-[15px] text-muted">Could not read that photo. Enter the expense yourself.</p>
+      ) : null}
       <button
         type="button"
         className="min-h-11 text-[15px] font-semibold text-primary"
