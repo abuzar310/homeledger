@@ -19,7 +19,7 @@ export function NetworkBanner() {
   if (!offline) return null;
   return (
     <p className="offline-bar bg-warn/15 px-3 py-2 text-center text-[13px] font-medium text-warn" role="status">
-      You're offline.
+      You are offline.
     </p>
   );
 }
