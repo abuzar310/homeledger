@@ -7,7 +7,8 @@ import type { ReceiptDraft } from "@/lib/ai-types";
 import { todayISO } from "@/lib/dates";
 import { formatINR, parseAmount } from "@/lib/money";
 import { enqueueOffline } from "@/lib/offline";
-import { suggestCategoryLocal } from "@/lib/categorization";
+import { categorizeExpense, suggestCategoryLocal } from "@/lib/categorization";
+import { shouldAskAi } from "@/lib/categorization/once";
 import { parseSmartEntry } from "@/lib/smart-entry";
 import { CHANNELS, CHANNEL_LABELS, type PurchaseChannel } from "@/lib/types";
 import { createClient } from "@/lib/supabase/client";
@@ -68,13 +69,14 @@ export function AddExpenseForm() {
     [catalogs.subcategories, categoryId],
   );
 
-  function applyGuess(text: string, merchant = merchantName) {
-    if (pickedRef.current) return;
-    const guess = suggestCategoryLocal({ name: text, merchantName: merchant }, catalogs);
-    if (!guess?.categoryId) {
-      setGuessLabel(null);
-      return;
-    }
+  function applyResolved(guess: {
+    categoryId: string | null;
+    subcategoryId: string | null;
+    merchantName: string | null;
+    paymentMethodId: string | null;
+    purchaseChannel: import("@/lib/types").PurchaseChannel | null;
+  }) {
+    if (!guess.categoryId) return;
     setCategoryId(guess.categoryId);
     setSubcategoryId(guess.subcategoryId ?? "");
     if (guess.merchantName && !merchantName) setMerchantName(guess.merchantName);
@@ -83,6 +85,25 @@ export function AddExpenseForm() {
     const category = catalogs.categories.find((c) => c.id === guess.categoryId)?.name;
     const subcategory = catalogs.subcategories.find((s) => s.id === guess.subcategoryId)?.name;
     setGuessLabel(subcategory ? `${category} · ${subcategory}` : category ?? null);
+  }
+
+  function applyGuess(text: string, merchant = merchantName) {
+    if (pickedRef.current) return;
+    const local = suggestCategoryLocal({ name: text, merchantName: merchant }, catalogs);
+    if (local?.categoryId && !local.needsReview) {
+      applyResolved(local);
+      return;
+    }
+    if (local?.categoryId) applyResolved(local);
+    if (!shouldAskAi(text, local?.confidence ?? null)) return;
+    void categorizeExpense({ name: text, merchantName: merchant }, catalogs)
+      .then((ai) => {
+        if (pickedRef.current || !ai.categoryId) return;
+        applyResolved(ai);
+      })
+      .catch(() => {
+        /* save still works without AI */
+      });
   }
 
   function applySmartName(next: string, force = false) {
@@ -402,6 +423,7 @@ export function AddExpenseForm() {
             <Select
               value={categoryId}
               onChange={(e) => {
+                pickedRef.current = true;
                 setCategoryId(e.target.value);
                 setSubcategoryId("");
               }}
