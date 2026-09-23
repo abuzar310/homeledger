@@ -20,9 +20,12 @@ const SECTIONS: { title: string; items: { href: string; label: string; icon: Luc
     items: [{ href: "/more/export", label: "Export data", icon: Download }],
   },
   {
-    title: "App",
+    title: "Account",
+    items: [{ href: "/more/settings", label: "Profile", icon: UserRound }],
+  },
+  {
+    title: "Support",
     items: [
-      { href: "/more/settings", label: "Profile", icon: UserRound },
       { href: "/more/help", label: "Help & support", icon: HelpCircle },
       { href: "/more/about", label: "About", icon: BookOpen },
     ],

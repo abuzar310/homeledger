@@ -60,7 +60,7 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     load(false)
-      .catch((err: Error) => setError(err.message || "Could not load your home"))
+      .catch(() => setError("Something went wrong."))
       .finally(() => setLoading(false));
   }, [load]);
 
@@ -82,7 +82,20 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
     return (
       <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-5">
         <h1 className="text-2xl font-semibold">HomeLedger</h1>
-        <p className="mt-2 text-muted">{error}</p>
+        <p className="mt-2 text-muted">Something went wrong.</p>
+        <button
+          type="button"
+          className="press mt-4 inline-flex min-h-12 items-center justify-center rounded-xl bg-primary px-4 text-[16px] font-semibold text-on-primary"
+          onClick={() => {
+            setError(null);
+            setLoading(true);
+            load(true)
+              .catch(() => setError("Something went wrong."))
+              .finally(() => setLoading(false));
+          }}
+        >
+          Try again
+        </button>
       </main>
     );
   }

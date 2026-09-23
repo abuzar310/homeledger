@@ -29,7 +29,11 @@ export const TransactionRow = memo(function TransactionRow({
   const locking = useRef<"h" | "v" | null>(null);
   const [x, setX] = useState(0);
   const [confirm, setConfirm] = useState(false);
-  const meta = [showDate ? formatRelativeDay(tx.occurred_on) : null, tx.category?.name, tx.payment_method?.name]
+  const meta = [
+    showDate ? formatRelativeDay(tx.occurred_on) : null,
+    tx.category?.name,
+    tx.subcategory?.name,
+  ]
     .filter(Boolean)
     .join(" · ");
 

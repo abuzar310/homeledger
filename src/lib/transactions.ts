@@ -138,6 +138,7 @@ export async function saveExpense(
         categoryId: input.categoryId ?? suggestion?.categoryId ?? null,
         subcategoryId: input.subcategoryId ?? suggestion?.subcategoryId ?? null,
         channel: input.purchaseChannel ?? suggestion?.purchaseChannel ?? null,
+        remember: Boolean(input.userCategorized),
       })
     : null;
 
@@ -227,6 +228,15 @@ export async function updateExpense(
   if (error) throw error;
   const saved = await getTransaction(supabase, id);
   if (!saved) throw new Error("Expense not found");
+  if (saved.merchant_id && patch.category_id) {
+    await supabase
+      .from("merchants")
+      .update({
+        default_category_id: patch.category_id,
+        default_subcategory_id: patch.subcategory_id ?? saved.subcategory_id ?? null,
+      })
+      .eq("id", saved.merchant_id);
+  }
   clearMonthCache();
   return saved;
 }
@@ -261,16 +271,33 @@ export async function upsertMerchant(
   supabase: SupabaseClient,
   householdId: string,
   name: string,
-  defaults?: { categoryId?: string | null; subcategoryId?: string | null; channel?: PurchaseChannel | null },
+  defaults?: {
+    categoryId?: string | null;
+    subcategoryId?: string | null;
+    channel?: PurchaseChannel | null;
+    remember?: boolean;
+  },
 ): Promise<string> {
   const normalized = normalizeMerchantName(name);
   const { data: existing } = await supabase
     .from("merchants")
-    .select("id")
+    .select("id, default_category_id")
     .eq("household_id", householdId)
     .eq("normalized_name", normalized)
     .maybeSingle();
-  if (existing) return existing.id;
+  if (existing) {
+    if (defaults?.categoryId && (defaults.remember || !existing.default_category_id)) {
+      await supabase
+        .from("merchants")
+        .update({
+          default_category_id: defaults.categoryId,
+          default_subcategory_id: defaults.subcategoryId ?? null,
+          default_channel: defaults.channel ?? null,
+        })
+        .eq("id", existing.id);
+    }
+    return existing.id;
+  }
   const { data, error } = await supabase
     .from("merchants")
     .insert({

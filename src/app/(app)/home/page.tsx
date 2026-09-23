@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
+import { BudgetProgress } from "@/components/BudgetProgress";
 import { CategoryBars } from "@/components/CategoryBars";
-import { MonthInsight } from "@/components/MonthInsight";
 import { CountUp } from "@/components/CountUp";
 import { EmptyState } from "@/components/EmptyState";
 import { useHousehold } from "@/components/HouseholdProvider";
@@ -12,12 +12,12 @@ import { MonthPicker } from "@/components/MonthPicker";
 import { PullRefresh } from "@/components/PullRefresh";
 import { TransactionRow } from "@/components/TransactionRow";
 import { PrimaryButton } from "@/components/ui";
+import { listMonthBudgets } from "@/lib/budgets";
 import { monthKey } from "@/lib/dates";
-import { formatINR, percentChange } from "@/lib/money";
 import { useSessionOnce } from "@/lib/motion";
-import { fetchMonthTransactions, previousMonthTotal, spendByCategory, summarizeMonth } from "@/lib/reports";
+import { fetchMonthTransactions, spendByCategory, summarizeMonth } from "@/lib/reports";
 import { createClient } from "@/lib/supabase/client";
-import type { Transaction } from "@/lib/types";
+import type { Budget, Transaction } from "@/lib/types";
 
 function HomeInner() {
   const router = useRouter();
@@ -25,8 +25,9 @@ function HomeInner() {
   const month = params.get("month") || monthKey();
   const { household, catalogs, loading, refresh } = useHousehold();
   const [rows, setRows] = useState<Transaction[]>([]);
-  const [previous, setPrevious] = useState(0);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
   const [busy, setBusy] = useState(true);
+  const [error, setError] = useState(false);
   const enter = useSessionOnce("hl-home-enter");
   const added = params.get("added");
 
@@ -34,13 +35,16 @@ function HomeInner() {
     if (!household) return;
     const supabase = createClient();
     setBusy(true);
+    setError(false);
     try {
-      const [txs, prev] = await Promise.all([
+      const [txs, nextBudgets] = await Promise.all([
         fetchMonthTransactions(supabase, household.id, month),
-        previousMonthTotal(supabase, household.id, month),
+        listMonthBudgets(supabase, household.id, month),
       ]);
       setRows(txs);
-      setPrevious(prev);
+      setBudgets(nextBudgets);
+    } catch {
+      setError(true);
     } finally {
       setBusy(false);
     }
@@ -51,9 +55,11 @@ function HomeInner() {
   }, [loadMonth]);
 
   const summary = summarizeMonth(rows, month);
-  const categories = spendByCategory(rows, catalogs.categories).slice(0, 6);
-  const change = previous > 0 ? percentChange(summary.total, previous) : null;
-  const recent = rows.slice(0, 6);
+  const categorySpend = spendByCategory(rows, catalogs.categories);
+  const categories = categorySpend.slice(0, 5);
+  const recent = rows.slice(0, 5);
+  const householdBudget = budgets.find((b) => !b.category_id);
+  const categoryBudgets = budgets.filter((b) => b.category_id);
 
   return (
     <PullRefresh
@@ -75,9 +81,15 @@ function HomeInner() {
       {loading || busy ? (
         <div className="space-y-4" aria-busy="true" aria-label="Loading this month">
           <div className="skeleton h-16 rounded-xl" />
-          <div className="skeleton h-8 rounded-xl" />
+          <div className="skeleton h-20 rounded-xl" />
           <div className="skeleton h-40 rounded-xl" />
         </div>
+      ) : error ? (
+        <EmptyState
+          title="Something went wrong."
+          body="This month could not be loaded."
+          action={<PrimaryButton onClick={() => void loadMonth()}>Try again</PrimaryButton>}
+        />
       ) : !rows.length ? (
         <EmptyState
           title="No expenses yet"
@@ -91,45 +103,31 @@ function HomeInner() {
       ) : (
         <>
           <section className={enter ? "enter enter-2" : undefined}>
-            <p className="text-[15px] text-muted">This month</p>
-            <p className="mt-1 text-[36px] font-semibold leading-none tracking-tight tabular-nums">
+            <p className="text-[36px] font-semibold leading-none tracking-tight tabular-nums">
               <CountUp value={summary.total} />
             </p>
+            <p className="mt-2 text-[15px] text-muted">Spent this month</p>
             <div className="ledger-rule mt-3" aria-hidden />
-            {change != null ? (
-              <p className="mt-3 text-[14px] text-muted">
-                {change >= 0 ? "Up" : "Down"} {Math.abs(change)}% from last month · {summary.count}{" "}
-                {summary.count === 1 ? "spend" : "spends"}
-              </p>
-            ) : (
-              <p className="mt-3 text-[14px] text-muted">
-                {summary.count} {summary.count === 1 ? "spend" : "spends"} so far
-              </p>
-            )}
-            <MonthInsight
-              month={month}
-              total={summary.total}
-              previous={previous}
-              count={summary.count}
-              top={categories.slice(0, 3).map((row) => ({ name: row.category.name, total: row.total }))}
-            />
           </section>
 
-          <dl className={`grid grid-cols-3 gap-3 ${enter ? "enter enter-3" : ""}`}>
-            <Mini label="Today" value={formatINR(summary.todayTotal)} />
-            <Mini label="Daily average" value={formatINR(Math.round(summary.dailyAverage))} />
-            <Mini label="Spends" value={String(summary.count)} />
-          </dl>
+          {householdBudget ? (
+            <section className={enter ? "enter enter-3" : undefined}>
+              <BudgetProgress spent={summary.total} limit={householdBudget.amount} />
+            </section>
+          ) : categoryBudgets.length ? (
+            <section className={`space-y-4 ${enter ? "enter enter-3" : ""}`}>
+              {categoryBudgets.slice(0, 3).map((budget) => {
+                const name = catalogs.categories.find((c) => c.id === budget.category_id)?.name ?? "Category";
+                const spent = categorySpend.find((row) => row.category.id === budget.category_id)?.total ?? 0;
+                return <BudgetProgress key={budget.id} spent={spent} limit={budget.amount} label={name} />;
+              })}
+            </section>
+          ) : null}
 
           <section className={enter ? "enter enter-4" : undefined}>
-            <h2 className="mb-3 text-[16px] font-semibold">Spending by category</h2>
-            <CategoryBars rows={categories} onSelect={(id) => router.push(`/reports/category/${id}?month=${month}`)} />
-          </section>
-
-          <section className={enter ? "enter enter-5" : undefined}>
             <div className="mb-1 flex items-center justify-between">
               <h2 className="text-[16px] font-semibold">Recent</h2>
-              <Link href="/transactions" className="inline-flex min-h-11 items-center text-[15px] font-semibold text-primary">
+              <Link href={`/transactions?month=${month}`} className="inline-flex min-h-11 items-center text-[15px] font-semibold text-primary">
                 View all
               </Link>
             </div>
@@ -143,19 +141,20 @@ function HomeInner() {
               />
             ))}
           </section>
+
+          <section className={enter ? "enter enter-5" : undefined}>
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-[16px] font-semibold">Spending by category</h2>
+              <Link href={`/reports?month=${month}`} className="inline-flex min-h-11 items-center text-[15px] font-semibold text-primary">
+                View report
+              </Link>
+            </div>
+            <CategoryBars rows={categories} onSelect={(id) => router.push(`/reports/category/${id}?month=${month}`)} />
+          </section>
         </>
       )}
     </div>
     </PullRefresh>
-  );
-}
-
-function Mini({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <dt className="text-[13px] text-muted">{label}</dt>
-      <dd className="mt-1 text-[15px] font-semibold tabular-nums">{value}</dd>
-    </div>
   );
 }
 

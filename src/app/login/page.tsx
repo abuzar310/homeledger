@@ -9,7 +9,10 @@ import { createClient } from "@/lib/supabase/client";
 export default function LoginPage() {
   const router = useRouter();
   const googleBtn = useRef<HTMLDivElement>(null);
-  const [mode, setMode] = useState<"in" | "up">("in");
+  const [mode, setMode] = useState<"in" | "up">(() => {
+    if (typeof window === "undefined") return "in";
+    return new URLSearchParams(window.location.search).get("create") === "1" ? "up" : "in";
+  });
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

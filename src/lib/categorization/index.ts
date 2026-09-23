@@ -21,7 +21,7 @@ export async function categorizeExpense(
   merchants: Merchant[] = [],
 ): Promise<ResolvedCategorization> {
   const rule = matchRules(input);
-  const merchant = matchMerchant(input, merchants);
+  const merchant = matchMerchant(input, merchants, catalogs);
   let result = mergeResults(rule, merchant);
 
   if (!result || result.confidence < 0.7) {

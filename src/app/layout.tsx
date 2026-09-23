@@ -38,7 +38,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className={`${sans.variable} h-full antialiased`}>
+    <html lang="en-IN" className={`${sans.variable} h-full antialiased`}>
       <body className="min-h-full bg-bg font-sans text-ink">
         {children}
         <PwaRegister />

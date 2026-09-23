@@ -52,6 +52,23 @@ describe("automatic categorisation", () => {
     expect(result.merchantName).toBe("BESCOM");
   });
 
+  it("uses a merchant's remembered category", async () => {
+    const result = await categorizeExpense({ name: "Corner Store", merchantName: "Corner Store" }, catalogs, [
+      {
+        id: "m1",
+        household_id: "h",
+        name: "Corner Store",
+        normalized_name: "corner store",
+        default_category_id: "s",
+        default_subcategory_id: "os",
+        default_channel: "store",
+      },
+    ]);
+    expect(result.categoryId).toBe("s");
+    expect(result.subcategoryId).toBe("os");
+    expect(result.source).toBe("merchant");
+  });
+
   it("marks unknown expenses for review", async () => {
     const result = await categorizeExpense({ name: "xyzzy" }, catalogs);
     expect(result.needsReview).toBe(true);

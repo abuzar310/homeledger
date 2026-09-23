@@ -6,6 +6,7 @@ import { requestReceiptRead } from "@/lib/ai-client";
 import type { ReceiptDraft } from "@/lib/ai-types";
 import { todayISO } from "@/lib/dates";
 import { formatINR, parseAmount } from "@/lib/money";
+import { parseSmartEntry } from "@/lib/smart-entry";
 import { CHANNELS, CHANNEL_LABELS, type PurchaseChannel } from "@/lib/types";
 import { createClient } from "@/lib/supabase/client";
 import { saveExpense } from "@/lib/transactions";
@@ -13,12 +14,10 @@ import { useHousehold } from "./HouseholdProvider";
 import { SaveStatus } from "./SaveStatus";
 import { Field, PrimaryButton, Select, TextArea, TextInput } from "./ui";
 
-type Mode = "quick" | "detailed";
-
 export function AddExpenseForm() {
   const router = useRouter();
   const { household, catalogs, userId } = useHousehold();
-  const [mode, setMode] = useState<Mode>("quick");
+  const [details, setDetails] = useState(false);
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(todayISO());
@@ -40,6 +39,18 @@ export function AddExpenseForm() {
     () => catalogs.subcategories.filter((s) => !categoryId || s.category_id === categoryId),
     [catalogs.subcategories, categoryId],
   );
+
+  function applySmartName(next: string) {
+    setName(next);
+    const draft = parseSmartEntry(next);
+    if (draft.amount != null && !amount) setAmount(String(draft.amount));
+    if (draft.merchantName && !merchantName) setMerchantName(draft.merchantName);
+    if (draft.paymentHint && !paymentMethodId) {
+      const pay = catalogs.paymentMethods.find((p) => p.name.toLowerCase() === draft.paymentHint!.toLowerCase());
+      if (pay) setPaymentMethodId(pay.id);
+    }
+    if (draft.name && draft.amount != null && draft.name !== next) setName(draft.name);
+  }
 
   function applyDraft(draft: ReceiptDraft) {
     if (draft.name) setName(draft.name);
@@ -170,24 +181,12 @@ export function AddExpenseForm() {
         void submit();
       }}
     >
-      <div className="grid grid-cols-2 rounded-xl bg-line/70 p-1">
-        {(["quick", "detailed"] as const).map((id) => (
-          <button
-            key={id}
-            type="button"
-            className={`min-h-11 rounded-lg text-[15px] font-semibold ${mode === id ? "bg-surface text-ink" : "text-muted"}`}
-            onClick={() => setMode(id)}
-          >
-            {id === "quick" ? "Quick add" : "Detailed add"}
-          </button>
-        ))}
-      </div>
-
       <Field label="What did you spend on?">
         <TextInput
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Milk / Amazon / Vegetables"
+          onBlur={(e) => applySmartName(e.target.value)}
+          placeholder="Milk 54"
           autoFocus
         />
       </Field>
@@ -201,30 +200,24 @@ export function AddExpenseForm() {
             inputMode="decimal"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            placeholder="54"
+            placeholder="0"
             aria-label="Amount"
             className="w-full bg-transparent text-[36px] font-semibold leading-none tracking-tight tabular-nums text-ink outline-none placeholder:text-muted"
           />
         </div>
       </label>
-      <Field label="Date">
+      <Field label={date === todayISO() ? "Date · Today" : "Date"}>
         <TextInput type="date" value={date} onChange={(e) => setDate(e.target.value)} />
       </Field>
-      <Field label="Receipt photo">
-        <input
-          type="file"
-          accept="image/*"
-          capture="environment"
-          className="block w-full text-[15px]"
-          onChange={(e) => void onReceipt(e.target.files?.[0] ?? null)}
-        />
-      </Field>
-      {scan === "reading" ? <p className="text-[15px] text-muted">Reading the receipt…</p> : null}
-      {scan === "filled" ? (
-        <p className="text-[15px] text-accent">Filled from the receipt. Check it before you save.</p>
-      ) : null}
+      <button
+        type="button"
+        className="min-h-11 text-[15px] font-semibold text-primary"
+        onClick={() => setDetails((open) => !open)}
+      >
+        {details ? "Hide details" : "Add details"}
+      </button>
 
-      {mode === "detailed" ? (
+      {details ? (
         <>
           <Field label="Category">
             <Select
@@ -278,6 +271,19 @@ export function AddExpenseForm() {
           <Field label="Notes">
             <TextArea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional" />
           </Field>
+          <Field label="Receipt photo">
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="block w-full text-[15px]"
+              onChange={(e) => void onReceipt(e.target.files?.[0] ?? null)}
+            />
+          </Field>
+          {scan === "reading" ? <p className="text-[15px] text-muted">Reading the receipt…</p> : null}
+          {scan === "filled" ? (
+            <p className="text-[15px] text-accent">Filled from the receipt. Check it before you save.</p>
+          ) : null}
           <div>
             <div className="mb-2 flex items-center justify-between">
               <p className="text-[15px] font-medium">Line items</p>

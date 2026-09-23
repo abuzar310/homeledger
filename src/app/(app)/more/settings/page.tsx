@@ -33,8 +33,8 @@ export default function ProfilePage() {
       });
       await refresh();
       setStatus("Saved");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save.");
+    } catch {
+      setError("Could not save.");
     } finally {
       setBusy(false);
     }

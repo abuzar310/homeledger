@@ -34,6 +34,7 @@ function TransactionsInner() {
   const [page, setPage] = useState(0);
   const [busy, setBusy] = useState(true);
   const [hasMore, setHasMore] = useState(true);
+  const [error, setError] = useState(false);
 
   const applied = useMemo<TransactionFilters>(
     () => ({
@@ -54,12 +55,14 @@ function TransactionsInner() {
     if (!household) return;
     const supabase = createClient();
     setBusy(true);
+    setError(false);
     listTransactions(supabase, household.id, applied, 0, 30)
       .then((data) => {
         setRows(data);
         setPage(0);
         setHasMore(data.length === 30);
       })
+      .catch(() => setError(true))
       .finally(() => setBusy(false));
   }, [household, applied]);
 
@@ -110,6 +113,31 @@ function TransactionsInner() {
           <div className="skeleton h-16 rounded-2xl" />
           <div className="skeleton h-16 rounded-2xl" />
         </div>
+      ) : error ? (
+        <EmptyState
+          title="Something went wrong."
+          body="Your expenses could not be loaded."
+          action={
+            <PrimaryButton
+              type="button"
+              onClick={() => {
+                if (!household) return;
+                setBusy(true);
+                setError(false);
+                listTransactions(createClient(), household.id, applied, 0, 30)
+                  .then((data) => {
+                    setRows(data);
+                    setPage(0);
+                    setHasMore(data.length === 30);
+                  })
+                  .catch(() => setError(true))
+                  .finally(() => setBusy(false));
+              }}
+            >
+              Try again
+            </PrimaryButton>
+          }
+        />
       ) : !rows.length ? (
         <EmptyState
           title="No expenses found."
