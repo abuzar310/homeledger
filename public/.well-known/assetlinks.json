@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.homeledger.app",
+      "sha256_cert_fingerprints": [
+        "67:32:6E:F2:FD:5A:EE:FF:14:88:BE:44:0B:D9:34:AC:0E:46:D0:57:F4:4C:21:32:D3:67:D1:A7:85:01:17:C4"
+      ]
+    }
+  }
+]

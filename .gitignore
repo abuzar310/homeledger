@@ -40,3 +40,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# android signing — keep the keystore off git
+android/*.keystore
+android/*.jks
+android/key.txt
+/twa-manifest.json

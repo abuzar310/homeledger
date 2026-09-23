@@ -1,7 +1,14 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC = new Set(["/login", "/signup", "/auth/callback"]);
+const PUBLIC = new Set([
+  "/login",
+  "/signup",
+  "/auth/callback",
+  "/manifest.webmanifest",
+  "/sw.js",
+  "/.well-known/assetlinks.json",
+]);
 
 export async function updateSession(request: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -34,7 +41,8 @@ export async function updateSession(request: NextRequest) {
     PUBLIC.has(path) ||
     path.startsWith("/auth/") ||
     path.startsWith("/api/auth/") ||
-    path.startsWith("/api/ai/");
+    path.startsWith("/api/ai/") ||
+    path.startsWith("/.well-known/");
 
   if (!user && !isPublic) {
     const login = request.nextUrl.clone();
