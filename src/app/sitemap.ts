@@ -6,5 +6,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: absoluteUrl("/"), lastModified: SITE_UPDATED, changeFrequency: "weekly", priority: 1 },
     { url: absoluteUrl("/about"), lastModified: SITE_UPDATED, changeFrequency: "monthly", priority: 0.8 },
     { url: absoluteUrl("/login"), lastModified: SITE_UPDATED, changeFrequency: "monthly", priority: 0.4 },
+    { url: absoluteUrl("/llms.txt"), lastModified: SITE_UPDATED, changeFrequency: "monthly", priority: 0.3 },
   ];
 }

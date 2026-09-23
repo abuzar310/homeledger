@@ -10,6 +10,8 @@ const PUBLIC = new Set([
   "/llms-full.txt",
   "/robots.txt",
   "/sitemap.xml",
+  "/feed.xml",
+  "/opengraph-image",
   "/auth/callback",
 ]);
 
@@ -40,7 +42,13 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const path = request.nextUrl.pathname;
-  const isPublic = PUBLIC.has(path) || path.startsWith("/auth/") || path.startsWith("/api/auth/");
+  const isPublic =
+    PUBLIC.has(path) ||
+    path.startsWith("/auth/") ||
+    path.startsWith("/api/auth/") ||
+    path.startsWith("/ai/") ||
+    path.startsWith("/.well-known/") ||
+    path.startsWith("/opengraph-image");
 
   if (!user && !isPublic) {
     const login = request.nextUrl.clone();
