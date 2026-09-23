@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { categorizeExpense } from "./index";
+import { categorizeExpense, suggestCategoryLocal } from "./index";
 import type { Catalogs } from "@/lib/types";
 
 const catalogs: Catalogs = {
@@ -15,6 +15,7 @@ const catalogs: Catalogs = {
     { id: "gd", household_id: null, category_id: "g", name: "Dairy", sort_order: 1, is_system: true },
     { id: "fd", household_id: null, category_id: "d", name: "Food Delivery", sort_order: 1, is_system: true },
     { id: "os", household_id: null, category_id: "s", name: "Online Shopping", sort_order: 1, is_system: true },
+    { id: "se", household_id: null, category_id: "s", name: "Electronics", sort_order: 2, is_system: true },
     { id: "el", household_id: null, category_id: "u", name: "Electricity", sort_order: 1, is_system: true },
     { id: "kk", household_id: null, category_id: "k", name: "Kitchen", sort_order: 1, is_system: true },
   ],
@@ -22,6 +23,13 @@ const catalogs: Catalogs = {
 };
 
 describe("automatic categorisation", () => {
+  it("suggests milk and keyboard without asking the user to pick a list", () => {
+    expect(suggestCategoryLocal({ name: "Milk" }, catalogs)?.categoryId).toBe("g");
+    const keyboard = suggestCategoryLocal({ name: "keyboard" }, catalogs);
+    expect(keyboard?.categoryId).toBe("s");
+    expect(keyboard?.subcategoryId).toBe("se");
+  });
+
   it("puts milk in groceries/dairy", async () => {
     const result = await categorizeExpense({ name: "Nandini Milk" }, catalogs);
     expect(result.categoryId).toBe("g");

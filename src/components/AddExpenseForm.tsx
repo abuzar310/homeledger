@@ -7,6 +7,7 @@ import type { ReceiptDraft } from "@/lib/ai-types";
 import { todayISO } from "@/lib/dates";
 import { formatINR, parseAmount } from "@/lib/money";
 import { enqueueOffline } from "@/lib/offline";
+import { suggestCategoryLocal } from "@/lib/categorization";
 import { parseSmartEntry } from "@/lib/smart-entry";
 import { CHANNELS, CHANNEL_LABELS, type PurchaseChannel } from "@/lib/types";
 import { createClient } from "@/lib/supabase/client";
@@ -57,12 +58,32 @@ export function AddExpenseForm() {
   const [error, setError] = useState<string | null>(null);
   const [listening, setListening] = useState(false);
   const [voiceNote, setVoiceNote] = useState<string | null>(null);
+  const [guessLabel, setGuessLabel] = useState<string | null>(null);
+  const [changing, setChanging] = useState(false);
+  const pickedRef = useRef(false);
   const receiptInput = useRef<HTMLInputElement>(null);
 
   const subs = useMemo(
     () => catalogs.subcategories.filter((s) => !categoryId || s.category_id === categoryId),
     [catalogs.subcategories, categoryId],
   );
+
+  function applyGuess(text: string, merchant = merchantName) {
+    if (pickedRef.current) return;
+    const guess = suggestCategoryLocal({ name: text, merchantName: merchant }, catalogs);
+    if (!guess?.categoryId) {
+      setGuessLabel(null);
+      return;
+    }
+    setCategoryId(guess.categoryId);
+    setSubcategoryId(guess.subcategoryId ?? "");
+    if (guess.merchantName && !merchantName) setMerchantName(guess.merchantName);
+    if (guess.paymentMethodId && !paymentMethodId) setPaymentMethodId(guess.paymentMethodId);
+    if (guess.purchaseChannel && !channel) setChannel(guess.purchaseChannel);
+    const category = catalogs.categories.find((c) => c.id === guess.categoryId)?.name;
+    const subcategory = catalogs.subcategories.find((s) => s.id === guess.subcategoryId)?.name;
+    setGuessLabel(subcategory ? `${category} · ${subcategory}` : category ?? null);
+  }
 
   function applySmartName(next: string, force = false) {
     setName(next);
@@ -73,12 +94,9 @@ export function AddExpenseForm() {
       const pay = catalogs.paymentMethods.find((p) => p.name.toLowerCase() === draft.paymentHint!.toLowerCase());
       if (pay) setPaymentMethodId(pay.id);
     }
-    const leftover = (draft.name || next).toLowerCase();
-    if (force || !categoryId) {
-      const category = catalogs.categories.find((c) => leftover.includes(c.name.toLowerCase()));
-      if (category) setCategoryId(category.id);
-    }
+    const cleaned = draft.name && draft.amount != null && draft.name !== next ? draft.name : next;
     if (draft.name && draft.amount != null && draft.name !== next) setName(draft.name);
+    applyGuess(cleaned, draft.merchantName || merchantName);
   }
 
   function listen() {
@@ -136,6 +154,12 @@ export function AddExpenseForm() {
     if (draft.items?.length) {
       setItems(draft.items.map((item) => ({ name: item.name, amount: String(item.amount) })));
       setDetails(true);
+    }
+    if (!draft.categoryName) applyGuess(draft.name || name, draft.merchantName || merchantName);
+    else {
+      setGuessLabel(
+        draft.subcategoryName ? `${draft.categoryName} · ${draft.subcategoryName}` : draft.categoryName,
+      );
     }
   }
 
@@ -292,6 +316,37 @@ export function AddExpenseForm() {
           />
         </div>
       </label>
+      {guessLabel && !changing ? (
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-surface px-3 py-3">
+          <p className="text-[15px]">
+            This goes in <span className="font-semibold">{guessLabel}</span>.
+          </p>
+          <button type="button" className="min-h-11 shrink-0 text-[15px] font-semibold text-primary" onClick={() => setChanging(true)}>
+            Change
+          </button>
+        </div>
+      ) : null}
+      {changing ? (
+        <Field label="Category">
+          <Select
+            value={categoryId}
+            onChange={(e) => {
+              pickedRef.current = true;
+              setCategoryId(e.target.value);
+              setSubcategoryId("");
+              const category = catalogs.categories.find((c) => c.id === e.target.value);
+              setGuessLabel(category?.name ?? null);
+            }}
+          >
+            <option value="">Uncategorised</option>
+            {catalogs.categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </Select>
+        </Field>
+      ) : null}
       <Field label={date === todayISO() ? "Date · Today" : "Date"}>
         <TextInput type="date" value={date} onChange={(e) => setDate(e.target.value)} />
       </Field>

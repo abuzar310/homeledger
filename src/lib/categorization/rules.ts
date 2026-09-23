@@ -23,7 +23,7 @@ const RULES: Rule[] = [
   { keywords: ["biryani", "pizza", "burger", "dosa", "idli", "restaurant", "cafe", "lunch", "dinner"], categoryName: "Dining & Food", subcategoryName: "Dining Out", purchaseChannel: "restaurant", confidence: 0.8 },
   { keywords: ["amazon", "flipkart", "myntra", "meesho", "ajio"], categoryName: "Shopping", subcategoryName: "Online Shopping", purchaseChannel: "online", confidence: 0.72 },
   { keywords: ["shirt", "saree", "kurta", "jeans", "clothing", "dress"], categoryName: "Shopping", subcategoryName: "Clothing", confidence: 0.82 },
-  { keywords: ["phone", "laptop", "earphones", "electronics"], categoryName: "Shopping", subcategoryName: "Electronics", confidence: 0.8 },
+  { keywords: ["phone", "laptop", "earphones", "headphones", "keyboard", "mouse", "charger", "monitor", "tablet", "speaker", "power bank", "usb", "electronics"], categoryName: "Shopping", subcategoryName: "Electronics", confidence: 0.8 },
   { keywords: ["shampoo", "soap", "toothpaste", "cream", "personal care"], categoryName: "Shopping", subcategoryName: "Personal Care", confidence: 0.84 },
   { keywords: ["frying pan", "cooker", "mixer", "kitchen rack", "utensil"], categoryName: "Kitchen", subcategoryName: "Kitchen", confidence: 0.86 },
   { keywords: ["detergent", "phenyl", "cleaner", "cleaning"], categoryName: "Household", subcategoryName: "Cleaning", confidence: 0.86 },

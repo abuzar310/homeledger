@@ -15,6 +15,31 @@ export type ResolvedCategorization = {
   needsReview: boolean;
 };
 
+export function suggestCategoryLocal(
+  input: CategorizeInput,
+  catalogs: Catalogs,
+  merchants: Merchant[] = [],
+): ResolvedCategorization | null {
+  const result = mergeResults(matchRules(input), matchMerchant(input, merchants, catalogs));
+  if (!result?.categoryName) return null;
+  const category = findCategory(catalogs.categories, result.categoryName);
+  if (!category) return null;
+  const subcategory = findSubcategory(catalogs.subcategories, category.id, result.subcategoryName);
+  const payment = catalogs.paymentMethods.find(
+    (p) => p.name.toLowerCase() === (result.paymentMethodName ?? "").toLowerCase(),
+  );
+  return {
+    categoryId: category.id,
+    subcategoryId: subcategory?.id ?? null,
+    merchantName: result.merchantName,
+    purchaseChannel: result.purchaseChannel,
+    paymentMethodId: payment?.id ?? null,
+    confidence: result.confidence,
+    source: result.source,
+    needsReview: result.needsReview || result.confidence < 0.7,
+  };
+}
+
 export async function categorizeExpense(
   input: CategorizeInput,
   catalogs: Catalogs,
