@@ -29,7 +29,7 @@ export function googleAiKey(): string | undefined {
 }
 
 export function geminiModel(): string {
-  return process.env.AI_MODEL || "gemini-2.0-flash";
+  return process.env.AI_MODEL || "gemini-3.6-flash";
 }
 
 export function parseModelJson<T>(text: string): T | null {
