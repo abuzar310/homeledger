@@ -97,6 +97,7 @@ const KNOWN_MERCHANTS: { match: string; name: string }[] = [
   { match: "uber", name: "Uber" },
   { match: "ola", name: "Ola" },
   { match: "reliance", name: "Reliance" },
+  { match: "nandini", name: "Nandini" },
 ];
 
 export function detectMerchantName(text: string): string | null {

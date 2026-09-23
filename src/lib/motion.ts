@@ -1,12 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export function useSessionOnce(key: string) {
-  const [play] = useState(() => {
-    if (typeof sessionStorage === "undefined") return true;
-    if (sessionStorage.getItem(key)) return false;
+  const [play, setPlay] = useState(false);
+  useEffect(() => {
+    if (sessionStorage.getItem(key)) return;
     sessionStorage.setItem(key, "1");
-    return true;
-  });
+    setPlay(true);
+  }, [key]);
   return play;
 }
 

@@ -27,6 +27,7 @@ describe("automatic categorisation", () => {
     expect(result.categoryId).toBe("g");
     expect(result.subcategoryId).toBe("gd");
     expect(result.source).toBe("rule");
+    expect(result.merchantName).toBe("Nandini");
     expect(result.needsReview).toBe(false);
   });
 
