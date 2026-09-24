@@ -281,4 +281,14 @@ a {
     animation: none !important;
     transition: none !important;
   }
+  .enter,
+  .page-sheet,
+  .row-in,
+  .sheet-panel,
+  .check-pop,
+  .offline-bar,
+  .bar-fill {
+    opacity: 1 !important;
+    transform: none !important;
+  }
 }

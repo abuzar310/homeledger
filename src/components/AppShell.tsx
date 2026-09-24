@@ -58,7 +58,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <div className="flex min-h-dvh flex-1 flex-col">
         <NetworkBanner />
-        <main className="mx-auto w-full max-w-lg flex-1 px-4 pb-[calc(var(--nav-h)+var(--safe-bottom))] pt-[max(1rem,env(safe-area-inset-top))] md:max-w-3xl md:px-8 md:pb-10">
+        <main className="mx-auto w-full max-w-lg flex-1 px-4 pb-[calc(var(--nav-h)+var(--safe-bottom)+1.75rem)] pt-[max(1rem,env(safe-area-inset-top))] md:max-w-3xl md:px-8 md:pb-10">
           {children}
         </main>
 
