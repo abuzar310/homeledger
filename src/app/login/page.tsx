@@ -111,10 +111,11 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-5 py-10">
-      <p className="text-[13px] font-medium text-muted">HomeLedger</p>
-      <h1 className="mt-1 text-[28px] font-semibold tracking-tight">Your home&apos;s spending</h1>
-      <p className="mt-2 text-[15px] text-muted">Sign in so each family keeps their own expenses.</p>
+    <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-5 py-10 pt-[max(2.5rem,env(safe-area-inset-top))] pb-[max(2.5rem,env(safe-area-inset-bottom))]">
+      <p className="section-label">HomeLedger</p>
+      <h1 className="mt-2 text-[28px] font-semibold tracking-tight [text-wrap:balance]">Your home&apos;s spending</h1>
+      <p className="mt-2 text-[15px] leading-relaxed text-muted">Sign in so each family keeps their own expenses.</p>
+      <div className="ledger-rule mt-4" aria-hidden />
 
       <div className="mt-8 min-h-12 w-full" aria-busy={!gsiReady}>
         {GOOGLE_CLIENT_ID ? (

@@ -63,11 +63,11 @@ export function AppShell({ children }: { children: ReactNode }) {
         </main>
 
         <nav
-          className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface md:hidden"
+          className="dock fixed inset-x-0 bottom-0 z-40 border-t border-line md:hidden"
           style={{ paddingBottom: "var(--safe-bottom)" }}
           aria-label="Main"
         >
-          <ul className="mx-auto grid h-[var(--nav-h)] max-w-lg grid-cols-5 items-end px-2">
+          <ul className="mx-auto grid h-[var(--nav-h)] max-w-lg grid-cols-5 items-end px-1">
             {NAV.map((item) => {
               const active = pathname === item.href || (item.href !== "/home" && pathname.startsWith(item.href));
               const Icon = item.icon;
@@ -76,10 +76,10 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <li key={item.href} className="flex justify-center">
                     <Link
                       href={adding ? "/home" : item.href}
-                      className="press -mt-3 flex flex-col items-center text-[11px] font-semibold text-primary"
+                      className="press -mt-5 flex flex-col items-center text-[12px] font-semibold text-primary"
                       aria-label={adding ? "Close add" : "Add expense"}
                     >
-                      <span className="flex size-14 items-center justify-center rounded-full bg-primary text-on-primary">
+                      <span className="fab-shadow flex size-14 items-center justify-center rounded-full bg-primary text-on-primary">
                         <Plus className={`add-fab size-7 ${adding ? "on" : ""}`} strokeWidth={2.5} aria-hidden />
                       </span>
                       <span className="mt-1">{adding ? "Close" : "Add"}</span>
@@ -91,7 +91,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <li key={item.href}>
                   <Link
                     href={item.href}
-                    className={`flex h-16 flex-col items-center justify-center gap-1 text-[11px] ${
+                    className={`flex h-[var(--nav-h)] flex-col items-center justify-center gap-0.5 text-[12px] ${
                       active ? "font-semibold text-primary" : "text-muted"
                     }`}
                     aria-current={active ? "page" : undefined}

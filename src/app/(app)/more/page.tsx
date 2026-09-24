@@ -39,17 +39,17 @@ const SECTIONS: { title: string; items: { href: string; label: string; icon: Luc
 
 export default function MorePage() {
   return (
-    <div className="space-y-5">
-      <ScreenTitle title="More" />
+    <div className="space-y-6">
+      <ScreenTitle title="More" subtitle="Household, data, and account" />
       {SECTIONS.map((section) => (
         <section key={section.title}>
-          <h2 className="mb-2 text-[13px] font-medium text-muted">{section.title}</h2>
-          <div className="overflow-hidden rounded-2xl border border-line bg-surface">
+          <h2 className="section-label mb-2 px-1">{section.title}</h2>
+          <div className="overflow-hidden rounded-[1.25rem] border border-line bg-surface">
             {section.items.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className="press flex min-h-14 items-center justify-between gap-3 border-b border-line px-3 last:border-0"
+                className="press flex min-h-14 items-center justify-between gap-3 border-b border-line px-3.5 last:border-0"
               >
                 <span className="flex min-w-0 items-center gap-3">
                   <IconWell icon={item.icon} className="size-9" />

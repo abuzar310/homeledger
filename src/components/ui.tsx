@@ -27,7 +27,7 @@ export function Field({
 }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-[15px] font-medium text-ink">{label}</span>
+      <span className="mb-1.5 block text-[15px] font-medium text-muted">{label}</span>
       {children}
     </label>
   );
@@ -53,7 +53,7 @@ export function PrimaryButton({
   return (
     <button
       {...props}
-      className={`press inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-primary px-4 text-[16px] font-semibold text-on-primary disabled:opacity-45 ${className}`}
+      className={`press inline-flex min-h-12 w-full items-center justify-center rounded-2xl bg-primary px-4 text-[16px] font-semibold text-on-primary disabled:opacity-45 ${className}`}
     >
       {children}
     </button>
@@ -68,7 +68,7 @@ export function SecondaryButton({
   return (
     <button
       {...props}
-      className={`press inline-flex min-h-12 items-center justify-center rounded-xl border border-line bg-surface px-4 text-[16px] font-semibold text-ink disabled:opacity-45 ${className}`}
+      className={`press inline-flex min-h-12 items-center justify-center rounded-2xl border border-line bg-surface px-4 text-[16px] font-semibold text-ink disabled:opacity-45 ${className}`}
     >
       {children}
     </button>
@@ -76,19 +76,28 @@ export function SecondaryButton({
 }
 
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <section className={`rounded-2xl border border-line bg-surface p-4 ${className}`}>{children}</section>;
+  return <section className={`rounded-[1.25rem] border border-line bg-surface p-4 ${className}`}>{children}</section>;
+}
+
+export function SectionLabel({ children }: { children: ReactNode }) {
+  return <h2 className="section-label">{children}</h2>;
 }
 
 export function ScreenTitle({
   title,
+  subtitle,
   action,
 }: {
   title: string;
+  subtitle?: string;
   action?: ReactNode;
 }) {
   return (
     <div className="flex min-h-12 items-center justify-between gap-3">
-      <h1 className="text-[22px] font-semibold tracking-tight text-ink [text-wrap:balance]">{title}</h1>
+      <div className="min-w-0">
+        <h1 className="text-[22px] font-semibold tracking-tight text-ink [text-wrap:balance]">{title}</h1>
+        {subtitle ? <p className="mt-0.5 text-[15px] text-muted">{subtitle}</p> : null}
+      </div>
       {action}
     </div>
   );

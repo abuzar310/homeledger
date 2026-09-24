@@ -60,10 +60,11 @@ function SummaryInner() {
       ) : (
         <>
           <div>
-            <p className="text-[32px] font-semibold tabular-nums">{formatINR(summary.total)}</p>
-            <p className="mt-1 text-[15px] text-muted">
+            <p className="hero-amount">{formatINR(summary.total)}</p>
+            <p className="mt-2 text-[15px] text-muted">
               {summary.count} expense{summary.count === 1 ? "" : "s"}
             </p>
+            <div className="ledger-rule mt-3" aria-hidden />
           </div>
           <Card className="space-y-2 text-[16px]">
             <p>

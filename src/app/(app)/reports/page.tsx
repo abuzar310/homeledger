@@ -68,8 +68,8 @@ function ReportsInner() {
   const topCategory = categories[0];
 
   return (
-    <div className="space-y-4">
-      <ScreenTitle title="Reports" />
+    <div className="space-y-5">
+      <ScreenTitle title="Reports" subtitle="This month at a glance" />
       <MonthPicker value={month} onChange={(next) => router.replace(`/reports?month=${next}`)} />
 
       {loading || busy ? (
@@ -102,8 +102,8 @@ function ReportsInner() {
       ) : (
         <>
           <section>
-            <p className="text-[15px] text-muted">This month</p>
-            <p className="mt-1 text-[32px] font-semibold leading-none tracking-tight tabular-nums">
+            <p className="section-label">This month</p>
+            <p className="hero-amount mt-2">
               <CountUp value={total} />
             </p>
             <div className="ledger-rule mt-3" aria-hidden />
@@ -119,7 +119,7 @@ function ReportsInner() {
           <Card>
             <div className="mb-3 flex items-center justify-between gap-3">
               <h2 className="text-[16px] font-semibold">{formatMonthLabel(month)} summary</h2>
-              <Link href={`/reports/summary?month=${month}`} className="text-[15px] font-semibold text-primary">
+              <Link href={`/reports/summary?month=${month}`} className="inline-flex min-h-11 items-center text-[15px] font-semibold text-primary">
                 Full summary
               </Link>
             </div>
@@ -225,7 +225,7 @@ function TrendBars({ rows }: { rows: { month: string; total: number }[] }) {
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-line" aria-hidden>
             <div
-              className="h-full rounded-full bg-primary motion-reduce:transition-none"
+              className="bar-fill h-full rounded-full bg-primary"
               style={{ width: `${Math.max(6, Math.round((row.total / max) * 100))}%` }}
             />
           </div>

@@ -47,8 +47,8 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="space-y-4">
-      <ScreenTitle title="Profile" />
+    <div className="space-y-5">
+      <ScreenTitle title="Profile" subtitle="Name and household" />
       <Card className="flex items-center gap-4">
         {profile?.avatar_url ? (
           // eslint-disable-next-line @next/next/no-img-element

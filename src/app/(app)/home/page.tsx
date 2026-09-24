@@ -11,7 +11,7 @@ import { useHousehold } from "@/components/HouseholdProvider";
 import { MonthPicker } from "@/components/MonthPicker";
 import { PullRefresh } from "@/components/PullRefresh";
 import { TransactionRow } from "@/components/TransactionRow";
-import { PrimaryButton } from "@/components/ui";
+import { Card, PrimaryButton, SectionLabel } from "@/components/ui";
 import { listMonthBudgets } from "@/lib/budgets";
 import { monthKey, todayISO } from "@/lib/dates";
 import { formatINR } from "@/lib/money";
@@ -79,7 +79,7 @@ function HomeInner() {
         await loadMonth();
       }}
     >
-    <div className="space-y-6">
+    <div className="space-y-7">
       <header className={enter ? "enter enter-1" : undefined}>
         <h1 className="sr-only">Home</h1>
         <MonthPicker
@@ -90,18 +90,18 @@ function HomeInner() {
       </header>
 
       {!busy && due.length ? (
-        <section className="rounded-2xl border border-line bg-surface p-4">
-          <h2 className="text-[16px] font-semibold">Due this month</h2>
-          <ul className="mt-2 space-y-3">
+        <Card className={enter ? "enter enter-2" : undefined}>
+          <SectionLabel>Due this month</SectionLabel>
+          <ul className="mt-3 space-y-3">
             {due.map((bill) => (
               <li key={bill.id} className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="font-medium">{bill.name}</p>
-                  <p className="text-[13px] text-muted">{formatINR(bill.amount)}</p>
+                <div className="min-w-0">
+                  <p className="truncate font-medium">{bill.name}</p>
+                  <p className="text-[13px] tabular-nums text-muted">{formatINR(bill.amount)}</p>
                 </div>
                 <button
                   type="button"
-                  className="min-h-11 text-[15px] font-semibold text-primary"
+                  className="press min-h-11 shrink-0 rounded-xl px-2 text-[15px] font-semibold text-primary"
                   onClick={async () => {
                     if (!household || !userId) return;
                     const supabase = createClient();
@@ -124,14 +124,14 @@ function HomeInner() {
               </li>
             ))}
           </ul>
-        </section>
+        </Card>
       ) : null}
 
       {loading || busy ? (
         <div className="space-y-4" aria-busy="true" aria-label="Loading this month">
-          <div className="skeleton h-16 rounded-xl" />
-          <div className="skeleton h-20 rounded-xl" />
-          <div className="skeleton h-40 rounded-xl" />
+          <div className="skeleton h-16 rounded-[1.25rem]" />
+          <div className="skeleton h-24 rounded-[1.25rem]" />
+          <div className="skeleton h-40 rounded-[1.25rem]" />
         </div>
       ) : error ? (
         <EmptyState
@@ -152,7 +152,7 @@ function HomeInner() {
       ) : (
         <>
           <section className={enter ? "enter enter-2" : undefined}>
-            <p className="text-[36px] font-semibold leading-none tracking-tight tabular-nums">
+            <p className="hero-amount">
               <CountUp value={summary.total} />
             </p>
             <p className="mt-2 text-[15px] text-muted">Spent this month</p>
@@ -174,12 +174,13 @@ function HomeInner() {
           ) : null}
 
           <section className={enter ? "enter enter-4" : undefined}>
-            <div className="mb-1 flex items-center justify-between">
-              <h2 className="text-[16px] font-semibold">Recent</h2>
+            <div className="mb-2 flex items-center justify-between">
+              <SectionLabel>Recent</SectionLabel>
               <Link href={`/transactions?month=${month}`} className="inline-flex min-h-11 items-center text-[15px] font-semibold text-primary">
                 View all
               </Link>
             </div>
+            <div className="overflow-hidden rounded-[1.25rem] border border-line bg-surface px-4">
             {recent.map((tx) => (
               <TransactionRow
                 key={tx.id}
@@ -189,11 +190,12 @@ function HomeInner() {
                 onDeleted={(id) => setRows((cur) => cur.filter((row) => row.id !== id))}
               />
             ))}
+            </div>
           </section>
 
           <section className={enter ? "enter enter-5" : undefined}>
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-[16px] font-semibold">Spending by category</h2>
+              <SectionLabel>Spending by category</SectionLabel>
               <Link href={`/reports?month=${month}`} className="inline-flex min-h-11 items-center text-[15px] font-semibold text-primary">
                 View report
               </Link>

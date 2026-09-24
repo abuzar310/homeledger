@@ -79,12 +79,12 @@ function TransactionsInner() {
         setHasMore(data.length === 30);
       }}
     >
-    <div className="space-y-4">
-      <ScreenTitle title="Transactions" />
-      <div className="flex items-center justify-between">
+    <div className="space-y-5">
+      <ScreenTitle title="Transactions" subtitle="Search or filter this month" />
+      <div className="flex items-center justify-between gap-3">
         <MonthPicker value={month} onChange={(next) => router.replace(`/transactions?month=${next}`)} />
         <button
-          className="press inline-flex min-h-11 items-center gap-2 text-[15px] font-semibold text-primary"
+          className="press inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl px-2 text-[15px] font-semibold text-primary"
           onClick={() => setOpenFilters(true)}
         >
           <SlidersHorizontal className="size-4" />
@@ -95,7 +95,7 @@ function TransactionsInner() {
         <TextInput
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search expenses..."
+          placeholder="Milk, Amazon…"
           aria-label="Search expenses"
           inputMode="search"
           enterKeyHint="search"
@@ -109,9 +109,9 @@ function TransactionsInner() {
 
       {loading || (busy && !rows.length) ? (
         <div className="space-y-3" aria-busy="true" aria-label="Loading expenses">
-          <div className="skeleton h-16 rounded-2xl" />
-          <div className="skeleton h-16 rounded-2xl" />
-          <div className="skeleton h-16 rounded-2xl" />
+          <div className="skeleton h-16 rounded-[1.25rem]" />
+          <div className="skeleton h-16 rounded-[1.25rem]" />
+          <div className="skeleton h-16 rounded-[1.25rem]" />
         </div>
       ) : error ? (
         <EmptyState
@@ -152,11 +152,11 @@ function TransactionsInner() {
         <div className="space-y-5">
           {groups.map((group) => (
             <section key={group.date}>
-              <div className="mb-1">
-                <h2 className="text-[13px] font-medium text-muted">{group.title}</h2>
+              <div className="mb-2">
+                <h2 className="section-label">{group.title}</h2>
                 {group.subtitle ? <p className="text-[13px] text-muted">{group.subtitle}</p> : null}
               </div>
-              <div className="rounded-2xl border border-line bg-surface px-4">
+              <div className="rounded-[1.25rem] border border-line bg-surface px-4">
                 {group.items.map((tx) => (
                   <TransactionRow
                     key={tx.id}

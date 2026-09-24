@@ -280,13 +280,13 @@ export function AddExpenseForm() {
 
   if (savedLabel) {
     return (
-      <div className="px-1 py-10 text-center">
+      <div className="px-2 py-12 text-center">
         <span className="check-pop mx-auto flex size-12 items-center justify-center rounded-full bg-accent-soft text-xl text-accent" aria-hidden>
           ✓
         </span>
         <p className="mt-3 text-sm font-medium text-accent">Expense added</p>
-        <h2 className="mt-2 text-2xl font-semibold">{savedLabel.name}</h2>
-        <p className="mt-1 text-xl tabular-nums">{savedLabel.amount}</p>
+        <h2 className="mt-2 text-2xl font-semibold tracking-tight [text-wrap:balance]">{savedLabel.name}</h2>
+        <p className="hero-amount mt-2">{savedLabel.amount}</p>
         <div className="ledger-rule mx-auto mt-3" aria-hidden />
         <p className="mt-3 text-muted">{savedLabel.category}</p>
       </div>
@@ -295,7 +295,7 @@ export function AddExpenseForm() {
 
   return (
     <form
-      className="space-y-4"
+      className="space-y-5"
       onSubmit={(e) => {
         e.preventDefault();
         void submit();
@@ -312,7 +312,7 @@ export function AddExpenseForm() {
           />
           <button
             type="button"
-            className="press min-h-12 shrink-0 rounded-xl border border-line px-3 text-[15px] font-semibold text-primary"
+            className="press min-h-12 shrink-0 rounded-2xl border border-line bg-surface px-3.5 text-[15px] font-semibold text-primary"
             onClick={() => listen()}
             aria-label={listening ? "Listening" : "Add by voice"}
           >
@@ -338,11 +338,11 @@ export function AddExpenseForm() {
         </div>
       </label>
       {guessLabel && !changing ? (
-        <div className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-surface px-3 py-3">
-          <p className="text-[15px]">
+        <div className="flex items-center justify-between gap-3 rounded-[1.25rem] border border-line bg-primary-soft px-3.5 py-3">
+          <p className="text-[15px] text-ink">
             This goes in <span className="font-semibold">{guessLabel}</span>.
           </p>
-          <button type="button" className="min-h-11 shrink-0 text-[15px] font-semibold text-primary" onClick={() => setChanging(true)}>
+          <button type="button" className="press min-h-11 shrink-0 text-[15px] font-semibold text-primary" onClick={() => setChanging(true)}>
             Change
           </button>
         </div>

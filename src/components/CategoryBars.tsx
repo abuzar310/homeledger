@@ -28,7 +28,7 @@ export function CategoryBars({
         const width = on ? Math.max(row.percent, 3) : 0;
         return (
           <li key={row.category.id}>
-            <button type="button" className="press min-h-11 w-full text-left" onClick={() => onSelect?.(row.category.id)}>
+            <button type="button" className="press min-h-12 w-full text-left" onClick={() => onSelect?.(row.category.id)}>
               <div className="mb-1 flex items-center justify-between gap-3">
                 <span className="flex min-w-0 items-center gap-2 text-[15px] font-medium">
                   <Icon className="size-4 shrink-0 text-primary" strokeWidth={1.75} aria-hidden />

@@ -81,11 +81,12 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
   if (error && !household) {
     return (
       <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-5">
-        <h1 className="text-2xl font-semibold">HomeLedger</h1>
-        <p className="mt-2 text-muted">Something went wrong.</p>
+        <p className="section-label">HomeLedger</p>
+        <h1 className="mt-2 text-2xl font-semibold tracking-tight">Something went wrong.</h1>
+        <p className="mt-2 text-[15px] text-muted">This home could not be loaded. Try again in a moment.</p>
         <button
           type="button"
-          className="press mt-4 inline-flex min-h-12 items-center justify-center rounded-xl bg-primary px-4 text-[16px] font-semibold text-on-primary"
+          className="press mt-6 inline-flex min-h-12 items-center justify-center rounded-2xl bg-primary px-4 text-[16px] font-semibold text-on-primary"
           onClick={() => {
             setError(null);
             setLoading(true);

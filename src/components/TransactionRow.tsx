@@ -38,7 +38,7 @@ export const TransactionRow = memo(function TransactionRow({
     .join(" · ");
 
   return (
-    <div className={`relative overflow-hidden border-b border-line last:border-b-0 ${highlight ? "row-in" : ""}`}>
+    <div className={`relative overflow-hidden border-b border-line last:border-b-0 ${highlight ? "row-in highlight-row" : ""}`}>
       <div className="absolute inset-y-0 right-0 flex w-40">
         <Link
           href={`/transactions/${tx.id}`}

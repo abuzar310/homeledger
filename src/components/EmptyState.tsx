@@ -14,11 +14,11 @@ export function EmptyState({
   icon?: LucideIcon;
 }) {
   return (
-    <div className="px-1 py-10 text-center">
+    <div className="px-2 py-12 text-center">
       <IconWell icon={icon} className="mx-auto size-14" />
-      <h2 className="mt-4 text-lg font-semibold text-ink">{title}</h2>
-      <p className="mx-auto mt-2 max-w-xs text-[15px] text-muted">{body}</p>
-      {action ? <div className="mt-5">{action}</div> : null}
+      <h2 className="mt-4 text-[20px] font-semibold tracking-tight text-ink">{title}</h2>
+      <p className="mx-auto mt-2 max-w-[18rem] text-[15px] leading-relaxed text-muted">{body}</p>
+      {action ? <div className="mx-auto mt-6 max-w-xs">{action}</div> : null}
     </div>
   );
 }

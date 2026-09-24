@@ -2,11 +2,11 @@
 
 :root {
   /* Kitchen ledger: warmth lives in the pen, not the paper. */
-  --bg: oklch(1 0 0);
-  --surface: oklch(0.985 0 0);
+  --bg: oklch(0.985 0.008 70);
+  --surface: oklch(0.998 0.003 70);
   --ink: oklch(0.22 0.025 36);
   --muted: oklch(0.44 0.02 36);
-  --line: oklch(0.9 0.008 36);
+  --line: oklch(0.9 0.012 36);
   --primary: oklch(0.52 0.15 36);
   --primary-deep: oklch(0.4 0.12 36);
   --primary-soft: oklch(0.96 0.02 36);
@@ -15,7 +15,7 @@
   --accent-soft: oklch(0.95 0.02 210);
   --warn: oklch(0.55 0.14 55);
   --danger: oklch(0.5 0.18 25);
-  --nav-h: 88px;
+  --nav-h: 72px;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in: cubic-bezier(0.4, 0, 1, 1);
@@ -58,12 +58,16 @@ body {
   background: var(--bg);
   color: var(--ink);
   min-height: 100%;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
   font-size: 16px;
   line-height: 1.5;
+  overscroll-behavior-y: contain;
+  -webkit-tap-highlight-color: transparent;
 }
 
 button,
@@ -98,6 +102,35 @@ a {
   height: 2px;
   width: 4.5rem;
   background: var(--primary);
+}
+
+.hero-amount {
+  font-size: clamp(2rem, 8vw, 2.25rem);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.section-label {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}
+
+.dock {
+  background: color-mix(in oklab, var(--surface) 88%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.fab-shadow {
+  box-shadow: 0 8px 20px color-mix(in oklab, var(--primary) 28%, transparent);
+}
+
+.highlight-row {
+  background: color-mix(in oklab, var(--primary-soft) 80%, var(--surface));
 }
 
 .sheet-scrim {
