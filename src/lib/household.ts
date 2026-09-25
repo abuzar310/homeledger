@@ -1,13 +1,32 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Catalogs, Category, Household, PaymentMethod, Subcategory } from "@/lib/types";
 
+export function pickActiveHouseholdId(
+  ensuredId: string,
+  memberships: { household_id: string; created_at: string }[],
+): string {
+  if (!memberships.length) return ensuredId;
+  return [...memberships].sort((a, b) => (a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0))[0]
+    .household_id;
+}
+
 export async function ensureHousehold(supabase: SupabaseClient): Promise<Household> {
   const { data, error } = await supabase.rpc("ensure_household");
   if (error) throw error;
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { data: memberships } = user
+    ? await supabase
+        .from("household_members")
+        .select("household_id, created_at")
+        .eq("user_id", user.id)
+    : { data: [] };
+  const hid = pickActiveHouseholdId(String(data), (memberships ?? []) as { household_id: string; created_at: string }[]);
   const { data: household, error: householdError } = await supabase
     .from("households")
     .select("id, name, created_by, created_at")
-    .eq("id", data)
+    .eq("id", hid)
     .single();
   if (householdError || !household) throw householdError ?? new Error("Household not found");
   return household as Household;

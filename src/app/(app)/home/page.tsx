@@ -31,6 +31,7 @@ function HomeInner() {
   const [rows, setRows] = useState<Transaction[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [due, setDue] = useState<RecurringExpense[]>([]);
+  const [addingDue, setAddingDue] = useState<string | null>(null);
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState(false);
   const enter = useSessionOnce("hl-home-enter");
@@ -102,24 +103,30 @@ function HomeInner() {
                 <button
                   type="button"
                   className="press min-h-11 shrink-0 rounded-xl px-2 text-[15px] font-semibold text-primary"
+                  disabled={addingDue === bill.id}
                   onClick={async () => {
-                    if (!household || !userId) return;
-                    const supabase = createClient();
-                    const saved = await saveExpense(supabase, household.id, userId, catalogs, {
-                      name: bill.name,
-                      amount: bill.amount,
-                      occurredOn: todayISO(),
-                      categoryId: bill.category_id,
-                      paymentMethodId: bill.payment_method_id,
-                      clientRequestId: crypto.randomUUID(),
-                    });
-                    await markRecurringCreated(supabase, household.id, bill);
-                    setDue((cur) => cur.filter((row) => row.id !== bill.id));
-                    router.replace(`/home?added=${saved.id}`);
-                    await loadMonth();
+                    if (!household || !userId || addingDue) return;
+                    setAddingDue(bill.id);
+                    try {
+                      const supabase = createClient();
+                      const saved = await saveExpense(supabase, household.id, userId, catalogs, {
+                        name: bill.name,
+                        amount: bill.amount,
+                        occurredOn: todayISO(),
+                        categoryId: bill.category_id,
+                        paymentMethodId: bill.payment_method_id,
+                        clientRequestId: crypto.randomUUID(),
+                      });
+                      await markRecurringCreated(supabase, household.id, bill);
+                      setDue((cur) => cur.filter((row) => row.id !== bill.id));
+                      router.replace(`/home?added=${saved.id}`);
+                      await loadMonth();
+                    } finally {
+                      setAddingDue(null);
+                    }
                   }}
                 >
-                  Add this month
+                  {addingDue === bill.id ? "Adding…" : "Add this month"}
                 </button>
               </li>
             ))}

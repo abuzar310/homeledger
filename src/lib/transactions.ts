@@ -78,7 +78,7 @@ export async function listTransactions(
   if (filters.minAmount != null) query = query.gte("amount", filters.minAmount);
   if (filters.maxAmount != null) query = query.lte("amount", filters.maxAmount);
 
-  const q = filters.query?.trim();
+  const q = sanitizeSearchTerm(filters.query);
   if (q) {
     const { data: merchants } = await supabase
       .from("merchants")
@@ -86,8 +86,7 @@ export async function listTransactions(
       .eq("household_id", householdId)
       .ilike("name", `%${q}%`);
     const merchantIds = (merchants ?? []).map((m) => m.id);
-    const escaped = q.replace(/,/g, " ");
-    const ors = [`name.ilike.%${escaped}%`, `notes.ilike.%${escaped}%`];
+    const ors = [`name.ilike.%${q}%`, `notes.ilike.%${q}%`];
     if (merchantIds.length) ors.push(`merchant_id.in.(${merchantIds.join(",")})`);
     query = query.or(ors.join(","));
   }
@@ -97,11 +96,18 @@ export async function listTransactions(
   return ((data ?? []) as unknown as Transaction[]).map(normalizeTx);
 }
 
+export function sanitizeSearchTerm(raw?: string | null): string {
+  return (raw ?? "").replace(/[%_(),.*"'\\]/g, " ").replace(/\s+/g, " ").trim();
+}
+
 export async function getTransaction(
   supabase: SupabaseClient,
   id: string,
+  householdId?: string,
 ): Promise<Transaction | null> {
-  const { data, error } = await supabase.from("transactions").select(TX_SELECT).eq("id", id).maybeSingle();
+  let query = supabase.from("transactions").select(TX_SELECT).eq("id", id);
+  if (householdId) query = query.eq("household_id", householdId);
+  const { data, error } = await query.maybeSingle();
   if (error) throw error;
   return data ? normalizeTx(data as Transaction) : null;
 }

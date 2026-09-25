@@ -229,7 +229,7 @@ export function AddExpenseForm() {
         .filter((item) => item.name.trim() && parseAmount(item.amount))
         .map((item) => ({ name: item.name, amount: parseAmount(item.amount)! })),
       clientRequestId: requestId,
-      userCategorized: Boolean(categoryId),
+      userCategorized: pickedRef.current,
     };
     if (typeof navigator !== "undefined" && !navigator.onLine) {
       enqueueOffline(payload);

@@ -5,8 +5,8 @@ import { BudgetProgress } from "@/components/BudgetProgress";
 import { EmptyState } from "@/components/EmptyState";
 import { useHousehold } from "@/components/HouseholdProvider";
 import { Card, Field, PrimaryButton, ScreenTitle, TextInput } from "@/components/ui";
-import { listMonthBudgets } from "@/lib/budgets";
-import { formatMonthLabel, monthKey, monthStart } from "@/lib/dates";
+import { listMonthBudgets, upsertMonthBudget } from "@/lib/budgets";
+import { formatMonthLabel, monthKey } from "@/lib/dates";
 import { parseAmount } from "@/lib/money";
 import { fetchMonthTransactions, spendByCategory, sum } from "@/lib/reports";
 import { createClient } from "@/lib/supabase/client";
@@ -116,12 +116,7 @@ export default function BudgetsPage() {
             if (!household) return;
             const parsed = parseAmount(amount);
             if (parsed == null) return;
-            await createClient().from("budgets").upsert({
-              household_id: household.id,
-              category_id: categoryId || null,
-              year_month: monthStart(month),
-              amount: parsed,
-            });
+            await upsertMonthBudget(createClient(), household.id, month, parsed, categoryId || null, budgets);
             setAmount("");
             await load();
           }}
