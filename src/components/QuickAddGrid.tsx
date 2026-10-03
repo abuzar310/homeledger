@@ -27,7 +27,7 @@ export function QuickAddGrid() {
               href={`/add?chip=${chip.id}`}
               className="press flex flex-col items-center gap-2 rounded-2xl px-1 py-2 text-center"
             >
-              <span className="flex size-12 items-center justify-center rounded-full bg-surface text-primary ring-1 ring-line">
+              <span className="flex size-12 items-center justify-center rounded-full bg-primary-soft text-primary-deep">
                 <Icon className="size-5" strokeWidth={1.75} aria-hidden />
               </span>
               <span className="text-[12px] font-medium text-muted">{chip.label}</span>
