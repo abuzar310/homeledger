@@ -79,8 +79,12 @@ function HomeInner() {
   }, [household, month, today]);
 
   useEffect(() => {
+    if (!household) {
+      if (!loading) setBusy(false);
+      return;
+    }
     void loadMonth();
-  }, [loadMonth]);
+  }, [household, loadMonth, loading]);
 
   const summary = summarizeMonth(rows, month);
   const categorySpend = spendByCategory(rows, catalogs.categories);

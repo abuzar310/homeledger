@@ -530,7 +530,7 @@ export function AddExpenseForm() {
         }}
       />
       <PrimaryButton type="submit" disabled={status === "saving" || status === "saved" || !household || !userId}>
-        {status === "saving" ? "Saving…" : status === "saved" ? "✓ Saved" : !household ? "Loading home…" : "Add expense"}
+        {status === "saving" ? "Saving…" : status === "saved" ? "✓ Saved" : "Add expense"}
       </PrimaryButton>
     </form>
   );

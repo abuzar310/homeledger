@@ -30,7 +30,10 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
 
   const load = useCallback(async (fresh: boolean) => {
     if (!isSupabaseConfigured()) {
-      setError("The household database is not connected yet.");
+      setHousehold(null);
+      setUser(null);
+      setProfile(null);
+      setError(null);
       setLoading(false);
       return;
     }
