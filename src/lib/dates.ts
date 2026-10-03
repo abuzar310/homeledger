@@ -77,8 +77,39 @@ export function daysInMonth(key: string): number {
   return Number(monthEnd(key).slice(8));
 }
 
-function shiftISO(iso: string, days: number): string {
+export function shiftISO(iso: string, days: number): string {
   const d = new Date(`${iso}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 10);
+}
+
+export function startOfWeek(iso: string): string {
+  const dow = new Date(`${iso}T00:00:00Z`).getUTCDay();
+  const back = dow === 0 ? 6 : dow - 1;
+  return shiftISO(iso, -back);
+}
+
+export function weekDays(monday: string): string[] {
+  return Array.from({ length: 7 }, (_, i) => shiftISO(monday, i));
+}
+
+export function formatWeekRange(start: string, end: string): string {
+  const a = new Date(`${start}T00:00:00Z`).toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  });
+  const b = new Date(`${end}T00:00:00Z`).toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  });
+  return `${a} – ${b}`;
+}
+
+export function weekdayShort(iso: string): string {
+  return new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-IN", {
+    weekday: "short",
+    timeZone: "UTC",
+  });
 }

@@ -28,3 +28,11 @@ export function percentChange(current: number, previous: number): number | null 
   if (previous <= 0) return current > 0 ? 100 : null;
   return Math.round(((current - previous) / previous) * 100);
 }
+
+export function monthChangeCopy(current: number, previous: number): string | null {
+  const pct = percentChange(current, previous);
+  if (pct == null) return null;
+  if (pct === 0) return "Same as last month";
+  if (pct < 0) return `${Math.abs(pct)}% less than last month`;
+  return `${pct}% more than last month`;
+}

@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { daysElapsedInMonth, monthEnd, monthStart, previousMonth, todayISO } from "@/lib/dates";
+import { daysElapsedInMonth, monthEnd, monthStart, previousMonth, startOfWeek, todayISO, weekDays, weekdayShort } from "@/lib/dates";
 import type { Category, Merchant, Transaction } from "@/lib/types";
 
 export type MonthSummary = {
@@ -136,4 +136,40 @@ export async function previousMonthTotal(
 
 export function sum(rows: { amount: number }[]): number {
   return rows.reduce((acc, row) => acc + Number(row.amount || 0), 0);
+}
+
+export type WeekDaySpend = {
+  iso: string;
+  label: string;
+  total: number;
+};
+
+export async function fetchRangeTransactions(
+  supabase: SupabaseClient,
+  householdId: string,
+  from: string,
+  to: string,
+): Promise<Transaction[]> {
+  const { data, error } = await supabase
+    .from("transactions")
+    .select(
+      "id, household_id, name, amount, occurred_on, category_id, subcategory_id, merchant_id, payment_method_id, notes, needs_review, category:categories(id, name, color, group_name), subcategory:subcategories(id, name), merchant:merchants(id, name), payment_method:payment_methods(id, name)",
+    )
+    .eq("household_id", householdId)
+    .gte("occurred_on", from)
+    .lte("occurred_on", to)
+    .order("occurred_on", { ascending: false })
+    .limit(2000);
+  if (error) throw error;
+  return ((data ?? []).map((tx) => ({ ...tx, amount: Number(tx.amount) })) as unknown as Transaction[]);
+}
+
+export function spendThisWeek(transactions: Transaction[], today = todayISO()): WeekDaySpend[] {
+  const monday = startOfWeek(today);
+  const days = weekDays(monday);
+  return days.map((iso) => ({
+    iso,
+    label: weekdayShort(iso),
+    total: sum(transactions.filter((tx) => tx.occurred_on === iso)),
+  }));
 }

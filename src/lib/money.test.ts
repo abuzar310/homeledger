@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatINR, parseAmount, percentChange } from "./money";
+import { formatINR, monthChangeCopy, parseAmount, percentChange } from "./money";
 
 describe("money", () => {
   it("formats Indian rupees", () => {
@@ -18,5 +18,8 @@ describe("money", () => {
   it("compares months", () => {
     expect(percentChange(33880, 28420)).toBe(19);
     expect(percentChange(100, 0)).toBe(100);
+    expect(monthChangeCopy(42262, 63077)).toBe("33% less than last month");
+    expect(monthChangeCopy(33880, 28420)).toBe("19% more than last month");
+    expect(monthChangeCopy(0, 0)).toBeNull();
   });
 });
