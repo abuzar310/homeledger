@@ -64,7 +64,7 @@ export default function LoginPage() {
     host.innerHTML = "";
     window.google.accounts.id.renderButton(host, {
       type: "standard",
-      theme: "outline",
+      theme: "filled_black",
       size: "large",
       text: "continue_with",
       shape: "rectangular",

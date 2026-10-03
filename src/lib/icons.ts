@@ -1,7 +1,9 @@
 import {
+  Apple,
   Banknote,
   BookOpen,
   Car,
+  Carrot,
   CircleHelp,
   Clapperboard,
   CookingPot,
@@ -9,6 +11,7 @@ import {
   HeartPulse,
   House,
   Landmark,
+  Milk,
   ReceiptText,
   ShoppingBag,
   ShoppingCart,
@@ -16,6 +19,7 @@ import {
   Tag,
   Utensils,
   Wallet,
+  Wrench,
   Zap,
   type LucideIcon,
 } from "lucide-react";
@@ -33,6 +37,11 @@ const CATEGORY: Record<string, LucideIcon> = {
   entertainment: Clapperboard,
   financial: Landmark,
   other: CircleHelp,
+  milk: Milk,
+  dairy: Milk,
+  fruits: Apple,
+  vegetables: Carrot,
+  "repairs & maintenance": Wrench,
 };
 
 export function categoryIcon(name?: string | null): LucideIcon {

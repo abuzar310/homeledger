@@ -1,20 +1,20 @@
 @import "tailwindcss";
 
 :root {
-  /* Kitchen ledger: warmth lives in the pen, not the paper. */
-  --bg: oklch(0.985 0.008 70);
-  --surface: oklch(0.998 0.003 70);
-  --ink: oklch(0.22 0.025 36);
-  --muted: oklch(0.44 0.02 36);
-  --line: oklch(0.9 0.012 36);
-  --primary: oklch(0.52 0.15 36);
-  --primary-deep: oklch(0.4 0.12 36);
-  --primary-soft: oklch(0.96 0.02 36);
-  --on-primary: oklch(1 0 0);
-  --accent: oklch(0.38 0.07 210);
-  --accent-soft: oklch(0.95 0.02 210);
-  --warn: oklch(0.55 0.14 55);
-  --danger: oklch(0.5 0.18 25);
+  /* Dark gold ledger — black paper, gold pen. */
+  --bg: #0b0b0b;
+  --surface: #161616;
+  --ink: #f4f4f5;
+  --muted: #a1a1aa;
+  --line: #2a2a2a;
+  --primary: #f0c33c;
+  --primary-deep: #f5d36a;
+  --primary-soft: #2a2208;
+  --on-primary: #14110a;
+  --accent: #f0c33c;
+  --accent-soft: #2a2208;
+  --warn: #f5b942;
+  --danger: #f07167;
   --nav-h: 72px;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
@@ -51,6 +51,10 @@
 
 * {
   box-sizing: border-box;
+}
+
+html {
+  color-scheme: dark;
 }
 
 html,

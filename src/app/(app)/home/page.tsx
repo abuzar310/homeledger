@@ -5,19 +5,27 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { BudgetProgress } from "@/components/BudgetProgress";
 import { CategoryBars } from "@/components/CategoryBars";
-import { CountUp } from "@/components/CountUp";
 import { EmptyState } from "@/components/EmptyState";
 import { useHousehold } from "@/components/HouseholdProvider";
-import { MonthPicker } from "@/components/MonthPicker";
+import { OverviewCard } from "@/components/OverviewCard";
 import { PullRefresh } from "@/components/PullRefresh";
+import { QuickAddGrid } from "@/components/QuickAddGrid";
 import { TransactionRow } from "@/components/TransactionRow";
+import { WeekChart } from "@/components/WeekChart";
 import { Card, PrimaryButton, SectionLabel } from "@/components/ui";
 import { listMonthBudgets } from "@/lib/budgets";
-import { monthKey, todayISO } from "@/lib/dates";
+import { monthKey, shiftISO, startOfWeek, todayISO } from "@/lib/dates";
 import { formatINR } from "@/lib/money";
 import { useSessionOnce } from "@/lib/motion";
 import { notifyIfAllowed, readNotifyPrefs } from "@/lib/notify";
-import { fetchMonthTransactions, spendByCategory, summarizeMonth } from "@/lib/reports";
+import {
+  fetchMonthTransactions,
+  fetchRangeTransactions,
+  previousMonthTotal,
+  spendByCategory,
+  spendThisWeek,
+  summarizeMonth,
+} from "@/lib/reports";
 import { listRecurring, markRecurringCreated, type RecurringExpense } from "@/lib/recurring";
 import { createClient } from "@/lib/supabase/client";
 import { saveExpense } from "@/lib/transactions";
@@ -29,27 +37,36 @@ function HomeInner() {
   const month = params.get("month") || monthKey();
   const { household, catalogs, loading, refresh, userId } = useHousehold();
   const [rows, setRows] = useState<Transaction[]>([]);
+  const [weekRows, setWeekRows] = useState<Transaction[]>([]);
+  const [lastMonthTotal, setLastMonthTotal] = useState(0);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [due, setDue] = useState<RecurringExpense[]>([]);
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState(false);
   const enter = useSessionOnce("hl-home-enter");
   const added = params.get("added");
+  const today = todayISO();
 
   const loadMonth = useCallback(async () => {
     if (!household) return;
     const supabase = createClient();
     setBusy(true);
     setError(false);
+    const monday = startOfWeek(today);
+    const sunday = shiftISO(monday, 6);
     try {
-      const [txs, nextBudgets, recurring] = await Promise.all([
+      const [txs, nextBudgets, recurring, prevTotal, weekTxs] = await Promise.all([
         fetchMonthTransactions(supabase, household.id, month),
         listMonthBudgets(supabase, household.id, month),
         listRecurring(supabase, household.id),
+        previousMonthTotal(supabase, household.id, month),
+        fetchRangeTransactions(supabase, household.id, monday, sunday),
       ]);
       setRows(txs);
+      setWeekRows(weekTxs);
+      setLastMonthTotal(prevTotal);
       setBudgets(nextBudgets);
-      const dueNow = recurring.filter((row) => row.next_on <= todayISO());
+      const dueNow = recurring.filter((row) => row.next_on <= today);
       setDue(dueNow);
       if (readNotifyPrefs().recurringReminders && dueNow[0]) {
         notifyIfAllowed("HomeLedger", `${dueNow[0].name} is due. Add it when you are ready.`);
@@ -59,7 +76,7 @@ function HomeInner() {
     } finally {
       setBusy(false);
     }
-  }, [household, month]);
+  }, [household, month, today]);
 
   useEffect(() => {
     void loadMonth();
@@ -71,6 +88,7 @@ function HomeInner() {
   const recent = rows.slice(0, 5);
   const householdBudget = budgets.find((b) => !b.category_id);
   const categoryBudgets = budgets.filter((b) => b.category_id);
+  const week = spendThisWeek(weekRows, today);
 
   return (
     <PullRefresh
@@ -80,17 +98,10 @@ function HomeInner() {
       }}
     >
     <div className="space-y-7">
-      <header className={enter ? "enter enter-1" : undefined}>
-        <h1 className="sr-only">Home</h1>
-        <MonthPicker
-          value={month}
-          onChange={(next) => router.replace(`/home?month=${next}`)}
-          className="text-[22px] font-semibold tracking-tight"
-        />
-      </header>
+      <h1 className="sr-only">Home</h1>
 
       {!busy && due.length ? (
-        <Card className={enter ? "enter enter-2" : undefined}>
+        <Card className={enter ? "enter enter-1" : undefined}>
           <SectionLabel>Due this month</SectionLabel>
           <ul className="mt-3 space-y-3">
             {due.map((bill) => (
@@ -108,7 +119,7 @@ function HomeInner() {
                     const saved = await saveExpense(supabase, household.id, userId, catalogs, {
                       name: bill.name,
                       amount: bill.amount,
-                      occurredOn: todayISO(),
+                      occurredOn: today,
                       categoryId: bill.category_id,
                       paymentMethodId: bill.payment_method_id,
                       clientRequestId: crypto.randomUUID(),
@@ -129,9 +140,9 @@ function HomeInner() {
 
       {loading || busy ? (
         <div className="space-y-4" aria-busy="true" aria-label="Loading this month">
-          <div className="skeleton h-16 rounded-[1.25rem]" />
-          <div className="skeleton h-24 rounded-[1.25rem]" />
+          <div className="skeleton h-28 rounded-[1.25rem]" />
           <div className="skeleton h-40 rounded-[1.25rem]" />
+          <div className="skeleton h-28 rounded-[1.25rem]" />
         </div>
       ) : error ? (
         <EmptyState
@@ -139,25 +150,17 @@ function HomeInner() {
           body="This month could not be loaded."
           action={<PrimaryButton onClick={() => void loadMonth()}>Try again</PrimaryButton>}
         />
-      ) : !rows.length ? (
-        <EmptyState
-          title="No expenses yet"
-          body="Start by adding your first household expense."
-          action={
-            <Link href="/add">
-              <PrimaryButton>Add expense</PrimaryButton>
-            </Link>
-          }
-        />
       ) : (
         <>
-          <section className={enter ? "enter enter-2" : undefined}>
-            <p className="hero-amount">
-              <CountUp value={summary.total} />
-            </p>
-            <p className="mt-2 text-[15px] text-muted">Spent this month</p>
-            <div className="ledger-rule mt-3" aria-hidden />
-          </section>
+          <div className={enter ? "enter enter-2" : undefined}>
+            <OverviewCard
+              month={month}
+              onMonth={(next) => router.replace(`/home?month=${next}`)}
+              total={summary.total}
+              previousTotal={lastMonthTotal}
+              categories={categories}
+            />
+          </div>
 
           {householdBudget ? (
             <section className={enter ? "enter enter-3" : undefined}>
@@ -173,35 +176,51 @@ function HomeInner() {
             </section>
           ) : null}
 
-          <section className={enter ? "enter enter-4" : undefined}>
-            <div className="mb-2 flex items-center justify-between">
-              <SectionLabel>Recent</SectionLabel>
-              <Link href={`/transactions?month=${month}`} className="inline-flex min-h-11 items-center text-[15px] font-semibold text-primary">
-                View all
-              </Link>
-            </div>
-            <div className="overflow-hidden rounded-[1.25rem] border border-line bg-surface px-4">
-            {recent.map((tx) => (
-              <TransactionRow
-                key={tx.id}
-                tx={tx}
-                showDate
-                highlight={tx.id === added}
-                onDeleted={(id) => setRows((cur) => cur.filter((row) => row.id !== id))}
-              />
-            ))}
-            </div>
-          </section>
+          <div className={enter ? "enter enter-4" : undefined}>
+            <WeekChart days={week} today={today} />
+          </div>
 
-          <section className={enter ? "enter enter-5" : undefined}>
-            <div className="mb-3 flex items-center justify-between">
-              <SectionLabel>Spending by category</SectionLabel>
-              <Link href={`/reports?month=${month}`} className="inline-flex min-h-11 items-center text-[15px] font-semibold text-primary">
-                View report
-              </Link>
-            </div>
-            <CategoryBars rows={categories} onSelect={(id) => router.push(`/reports/category/${id}?month=${month}`)} />
-          </section>
+          <div className={enter ? "enter enter-5" : undefined}>
+            <QuickAddGrid />
+          </div>
+
+          {recent.length ? (
+            <section>
+              <div className="mb-2 flex items-center justify-between">
+                <SectionLabel>Recent</SectionLabel>
+                <Link href={`/transactions?month=${month}`} className="inline-flex min-h-11 items-center text-[15px] font-semibold text-primary">
+                  View all
+                </Link>
+              </div>
+              <div className="overflow-hidden rounded-[1.25rem] border border-line bg-surface px-4">
+              {recent.map((tx) => (
+                <TransactionRow
+                  key={tx.id}
+                  tx={tx}
+                  showDate
+                  highlight={tx.id === added}
+                  onDeleted={(id) => setRows((cur) => cur.filter((row) => row.id !== id))}
+                />
+              ))}
+              </div>
+            </section>
+          ) : (
+            <p className="text-center text-[14px] text-muted">
+              Add milk, groceries, or a bill to start this month.
+            </p>
+          )}
+
+          {categories.length ? (
+            <section>
+              <div className="mb-3 flex items-center justify-between">
+                <SectionLabel>Spending by category</SectionLabel>
+                <Link href={`/reports?month=${month}`} className="inline-flex min-h-11 items-center text-[15px] font-semibold text-primary">
+                  View report
+                </Link>
+              </div>
+              <CategoryBars rows={categories} onSelect={(id) => router.push(`/reports/category/${id}?month=${month}`)} />
+            </section>
+          ) : null}
         </>
       )}
     </div>

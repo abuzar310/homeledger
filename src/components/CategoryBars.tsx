@@ -39,7 +39,10 @@ export function CategoryBars({
                 </span>
               </div>
               <div className="h-2 overflow-hidden rounded-full bg-line">
-                <div className="bar-fill h-full rounded-full bg-primary" style={{ width: `${width}%` }} />
+                <div
+                  className="bar-fill h-full rounded-full"
+                  style={{ width: `${width}%`, background: row.category.color || "var(--primary)" }}
+                />
               </div>
             </button>
           </li>

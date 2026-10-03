@@ -9,9 +9,9 @@ import { NetworkBanner } from "./NetworkBanner";
 
 const NAV = [
   { href: "/home", label: "Home", icon: Home },
-  { href: "/transactions", label: "Transactions", icon: ReceiptText },
-  { href: "/add", label: "Add", icon: Plus, center: true },
-  { href: "/reports", label: "Reports", icon: BarChart3 },
+  { href: "/transactions", label: "History", icon: ReceiptText },
+  { href: "/add", label: "Fill", icon: Plus, center: true },
+  { href: "/reports", label: "Stats", icon: BarChart3 },
   { href: "/more", label: "More", icon: Menu },
 ];
 
@@ -77,12 +77,12 @@ export function AppShell({ children }: { children: ReactNode }) {
                     <Link
                       href={adding ? "/home" : item.href}
                       className="press -mt-5 flex flex-col items-center text-[12px] font-semibold text-primary"
-                      aria-label={adding ? "Close add" : "Add expense"}
+                      aria-label={adding ? "Close fill" : "Fill expenses"}
                     >
                       <span className="fab-shadow flex size-14 items-center justify-center rounded-full bg-primary text-on-primary">
                         <Plus className={`add-fab size-7 ${adding ? "on" : ""}`} strokeWidth={2.5} aria-hidden />
                       </span>
-                      <span className="mt-1">{adding ? "Close" : "Add"}</span>
+                      <span className="mt-1">{adding ? "Close" : "Fill"}</span>
                     </Link>
                   </li>
                 );
