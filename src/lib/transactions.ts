@@ -227,10 +227,13 @@ export async function updateExpense(
     categorization_source: Transaction["categorization_source"];
   }>,
 ): Promise<Transaction> {
-  const { error } = await supabase
-    .from("transactions")
-    .update({ ...patch, categorization_source: patch.categorization_source ?? "user", needs_review: patch.needs_review ?? false })
-    .eq("id", id);
+  // Only a category change is the user confirming the category; editing the amount or name
+  // must not clear "Needs review" on an AI guess.
+  const categorized = patch.category_id !== undefined || patch.subcategory_id !== undefined;
+  const update = categorized
+    ? { ...patch, categorization_source: patch.categorization_source ?? "user", needs_review: patch.needs_review ?? false }
+    : patch;
+  const { error } = await supabase.from("transactions").update(update).eq("id", id);
   if (error) throw error;
   const saved = await getTransaction(supabase, id);
   if (!saved) throw new Error("Expense not found");

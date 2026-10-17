@@ -90,11 +90,12 @@ export const TransactionRow = memo(function TransactionRow({
         title="Delete this expense?"
         body="This cannot be undone."
         confirmLabel="Delete"
+        busyLabel="Deleting…"
         danger
         onClose={() => setConfirm(false)}
         onConfirm={async () => {
+          // Throws on failure, so the dialog stays open and shows the error.
           await deleteExpense(createClient(), tx.id);
-          setConfirm(false);
           setX(0);
           onDeleted?.(tx.id);
           router.refresh();

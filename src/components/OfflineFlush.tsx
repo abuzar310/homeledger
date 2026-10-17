@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useHousehold } from "@/components/HouseholdProvider";
-import { readOfflineQueue, replaceOfflineQueue } from "@/lib/offline";
+import { flushOfflineQueue } from "@/lib/offline";
 import { createClient } from "@/lib/supabase/client";
 import { saveExpense } from "@/lib/transactions";
 
@@ -11,25 +11,27 @@ export function OfflineFlush() {
 
   useEffect(() => {
     if (!household || !userId) return;
+    const householdId = household.id;
+    const uid = userId;
 
-    async function flush() {
+    function flush() {
       if (!navigator.onLine) return;
-      const queued = readOfflineQueue();
-      if (!queued.length) return;
-      const left = [];
-      for (const item of queued) {
-        try {
-          await saveExpense(createClient(), household!.id, userId!, catalogs, item);
-        } catch {
-          left.push(item);
-        }
-      }
-      replaceOfflineQueue(left);
+      void flushOfflineQueue({ userId: uid, householdId }, (item) =>
+        saveExpense(createClient(), householdId, uid, catalogs, item),
+      );
     }
 
-    void flush();
+    function onVisible() {
+      if (document.visibilityState === "visible") flush();
+    }
+
+    flush();
     window.addEventListener("online", flush);
-    return () => window.removeEventListener("online", flush);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("online", flush);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [household, catalogs, userId]);
 
   return null;

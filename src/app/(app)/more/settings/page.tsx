@@ -4,17 +4,23 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useHousehold } from "@/components/HouseholdProvider";
 import { Card, Field, PrimaryButton, ScreenTitle, TextInput } from "@/components/ui";
-import { createClient } from "@/lib/supabase/client";
+import { clearCatalogCache } from "@/lib/household";
+import { clearOfflineQueueFor, flushOfflineQueue, queuedFor } from "@/lib/offline";
 import { saveProfile } from "@/lib/profile";
+import { clearMonthCache } from "@/lib/reports";
+import { createClient } from "@/lib/supabase/client";
+import { saveExpense } from "@/lib/transactions";
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { household, profile, userId, refresh } = useHousehold();
+  const { household, catalogs, profile, userId, refresh } = useHousehold();
   const [fullName, setFullName] = useState(profile?.full_name ?? "");
   const [homeName, setHomeName] = useState(household?.name ?? "My Home");
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [discardQueued, setDiscardQueued] = useState(false);
+  const [signOutNote, setSignOutNote] = useState<string | null>(null);
 
   useEffect(() => {
     if (profile?.full_name) setFullName(profile.full_name);
@@ -41,7 +47,25 @@ export default function ProfilePage() {
   }
 
   async function signOut() {
+    if (userId && household && !discardQueued) {
+      const owner = { userId, householdId: household.id };
+      if (navigator.onLine) {
+        await flushOfflineQueue(owner, (item) => saveExpense(createClient(), household.id, userId, catalogs, item));
+      }
+      const left = queuedFor(owner).length;
+      if (left) {
+        setDiscardQueued(true);
+        setSignOutNote(
+          `${left} expense${left === 1 ? " is" : "s are"} only on this phone and not synced yet. Go online to sync, or tap Sign out again to delete ${left === 1 ? "it" : "them"}.`,
+        );
+        return;
+      }
+    }
     await createClient().auth.signOut();
+    // Shared phones: nothing from this account should be left for the next person.
+    if (userId) clearOfflineQueueFor(userId);
+    clearCatalogCache();
+    clearMonthCache();
     router.replace("/login");
     router.refresh();
   }
@@ -84,6 +108,7 @@ export default function ProfilePage() {
         </PrimaryButton>
       </form>
 
+      {signOutNote ? <p className="text-[15px] text-danger">{signOutNote}</p> : null}
       <button type="button" className="min-h-12 w-full text-[15px] font-semibold text-danger" onClick={() => void signOut()}>
         Sign out
       </button>

@@ -27,8 +27,27 @@ export async function requestNotifyPermission(): Promise<boolean> {
   return next === "granted";
 }
 
-export function notifyIfAllowed(title: string, body: string) {
+async function serviceWorkerReady(timeoutMs = 3000): Promise<ServiceWorkerRegistration | null> {
+  if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return null;
+  // `ready` never settles when no worker is registered, so don't wait on it forever.
+  return Promise.race([
+    navigator.serviceWorker.ready,
+    new Promise<null>((resolve) => window.setTimeout(() => resolve(null), timeoutMs)),
+  ]).catch(() => null);
+}
+
+/** Android Chrome only shows notifications through the service worker; `new Notification` throws there. */
+export async function notifyIfAllowed(title: string, body: string) {
   if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+  const registration = await serviceWorkerReady();
+  if (registration) {
+    try {
+      await registration.showNotification(title, { body, icon: "/icon-192.png" });
+      return;
+    } catch {
+      /* fall back below */
+    }
+  }
   try {
     new Notification(title, { body });
   } catch {

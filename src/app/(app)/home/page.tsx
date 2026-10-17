@@ -26,10 +26,22 @@ import {
   spendThisWeek,
   summarizeMonth,
 } from "@/lib/reports";
-import { listRecurring, markRecurringCreated, type RecurringExpense } from "@/lib/recurring";
+import { listRecurring, markRecurringCreated, occurrenceRequestId, type RecurringExpense } from "@/lib/recurring";
 import { createClient } from "@/lib/supabase/client";
 import { saveExpense } from "@/lib/transactions";
 import type { Budget, Transaction } from "@/lib/types";
+
+/** True the first time a bill's reminder is asked for today, so reloads don't repeat it. */
+function remindOncePerDay(billId: string, today: string): boolean {
+  try {
+    const key = `hl-reminded:${billId}`;
+    if (localStorage.getItem(key) === today) return false;
+    localStorage.setItem(key, today);
+  } catch {
+    /* storage blocked: still remind */
+  }
+  return true;
+}
 
 function HomeInner() {
   const router = useRouter();
@@ -42,6 +54,7 @@ function HomeInner() {
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [due, setDue] = useState<RecurringExpense[]>([]);
   const [addingDue, setAddingDue] = useState<string | null>(null);
+  const [dueError, setDueError] = useState<{ id: string; message: string } | null>(null);
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState(false);
   const enter = useSessionOnce("hl-home-enter");
@@ -69,8 +82,8 @@ function HomeInner() {
       setBudgets(nextBudgets);
       const dueNow = recurring.filter((row) => row.next_on <= today);
       setDue(dueNow);
-      if (readNotifyPrefs().recurringReminders && dueNow[0]) {
-        notifyIfAllowed("HomeLedger", `${dueNow[0].name} is due. Add it when you are ready.`);
+      if (readNotifyPrefs().recurringReminders && dueNow[0] && remindOncePerDay(dueNow[0].id, today)) {
+        void notifyIfAllowed("HomeLedger", `${dueNow[0].name} is due. Add it when you are ready.`);
       }
     } catch {
       setError(true);
@@ -114,6 +127,11 @@ function HomeInner() {
                 <div className="min-w-0">
                   <p className="truncate font-medium">{bill.name}</p>
                   <p className="text-[13px] tabular-nums text-muted">{formatINR(bill.amount)}</p>
+                  {dueError?.id === bill.id ? (
+                    <p className="text-[13px] text-danger" role="alert">
+                      {dueError.message}
+                    </p>
+                  ) : null}
                 </div>
                 <button
                   type="button"
@@ -122,6 +140,7 @@ function HomeInner() {
                   onClick={async () => {
                     if (!household || !userId || addingDue) return;
                     setAddingDue(bill.id);
+                    setDueError(null);
                     try {
                       const supabase = createClient();
                       const saved = await saveExpense(supabase, household.id, userId, catalogs, {
@@ -130,12 +149,15 @@ function HomeInner() {
                         occurredOn: today,
                         categoryId: bill.category_id,
                         paymentMethodId: bill.payment_method_id,
-                        clientRequestId: crypto.randomUUID(),
+                        // Same id for this bill and due date, so a retry or a second phone is deduped.
+                        clientRequestId: await occurrenceRequestId(bill),
                       });
                       await markRecurringCreated(supabase, household.id, bill);
                       setDue((cur) => cur.filter((row) => row.id !== bill.id));
                       router.replace(`/home?added=${saved.id}`);
                       await loadMonth();
+                    } catch {
+                      setDueError({ id: bill.id, message: "Could not add this bill. Try again." });
                     } finally {
                       setAddingDue(null);
                     }
