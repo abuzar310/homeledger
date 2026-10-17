@@ -16,6 +16,17 @@ export function formatINR(amount: number): string {
   return Number.isInteger(value) ? formatter.format(value) : formatterExact.format(value);
 }
 
+/** Short rupee label for chart axes: ₹540, ₹12K, ₹1.2L, ₹3Cr. */
+export function formatINRCompact(amount: number): string {
+  const value = Number.isFinite(amount) ? Math.abs(amount) : 0;
+  const sign = amount < 0 ? "-" : "";
+  const short = (n: number) => String(n >= 10 ? Math.round(n) : Math.round(n * 10) / 10);
+  if (value < 1000) return `${sign}₹${Math.round(value)}`;
+  if (value < 99_500) return `${sign}₹${short(value / 1000)}K`;
+  if (value < 99_50_000) return `${sign}₹${short(value / 1_00_000)}L`;
+  return `${sign}₹${short(value / 1_00_00_000)}Cr`;
+}
+
 export function parseAmount(raw: string): number | null {
   const cleaned = raw.replace(/[₹,\s]/g, "").trim();
   if (!cleaned) return null;

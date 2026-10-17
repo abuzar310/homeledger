@@ -175,14 +175,16 @@ function HomeInner() {
 
           {householdBudget ? (
             <section className={enter ? "enter enter-3" : undefined}>
-              <BudgetProgress spent={summary.total} limit={householdBudget.amount} />
+              <BudgetProgress spent={summary.total} limit={householdBudget.amount} month={month} today={today} />
             </section>
           ) : categoryBudgets.length ? (
             <section className={`space-y-4 ${enter ? "enter enter-3" : ""}`}>
               {categoryBudgets.slice(0, 3).map((budget) => {
                 const name = catalogs.categories.find((c) => c.id === budget.category_id)?.name ?? "Category";
                 const spent = categorySpend.find((row) => row.category.id === budget.category_id)?.total ?? 0;
-                return <BudgetProgress key={budget.id} spent={spent} limit={budget.amount} label={name} />;
+                return (
+                  <BudgetProgress key={budget.id} spent={spent} limit={budget.amount} label={name} month={month} today={today} />
+                );
               })}
             </section>
           ) : null}

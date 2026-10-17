@@ -11,14 +11,32 @@ import { useHousehold } from "@/components/HouseholdProvider";
 import { MonthPicker } from "@/components/MonthPicker";
 import { TransactionRow } from "@/components/TransactionRow";
 import { CountUp } from "@/components/CountUp";
+import { MonthTrendChart } from "@/components/MonthTrendChart";
+import { ShareBars } from "@/components/ShareBars";
+import { SpendPaceChart } from "@/components/SpendPaceChart";
 import { Card, PrimaryButton, ScreenTitle } from "@/components/ui";
 import { formatINR } from "@/lib/money";
 import { listMonthBudgets } from "@/lib/budgets";
-import { formatMonthLabel, monthKey, previousMonth } from "@/lib/dates";
-import { summarizeMonth, fetchMonthTransactions, previousMonthTotal, spendByCategory, spendByMerchant, sum } from "@/lib/reports";
+import { daysInMonth, formatMonthLabel, monthEnd, monthKey, monthStart, previousMonth, todayISO } from "@/lib/dates";
+import {
+  cumulativeDaily,
+  dailyFromRows,
+  daysSoFar,
+  fetchDailyTotals,
+  fetchMonthTransactions,
+  monthTotals,
+  monthsBack,
+  spendByCategory,
+  spendByMerchant,
+  spendByPaymentMethod,
+  sum,
+  summarizeMonth,
+} from "@/lib/reports";
 import type { Budget } from "@/lib/types";
 import { createClient } from "@/lib/supabase/client";
 import type { Transaction } from "@/lib/types";
+
+const TREND_MONTHS = 6;
 
 function ReportsInner() {
   const router = useRouter();
@@ -26,10 +44,9 @@ function ReportsInner() {
   const month = params.get("month") || monthKey();
   const { household, catalogs, loading } = useHousehold();
   const [rows, setRows] = useState<Transaction[]>([]);
-  const [previous, setPrevious] = useState(0);
+  const [history, setHistory] = useState<Map<string, number>>(new Map());
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [busy, setBusy] = useState(true);
-  const [earlier, setEarlier] = useState(0);
   const [error, setError] = useState(false);
 
   const load = useCallback(async () => {
@@ -38,15 +55,15 @@ function ReportsInner() {
     setBusy(true);
     setError(false);
     try {
-      const [txs, prev, twoBack, nextBudgets] = await Promise.all([
+      // Earlier months come from one light query (date + amount); the selected month keeps its full rows.
+      const first = monthsBack(month, TREND_MONTHS)[0];
+      const [txs, days, nextBudgets] = await Promise.all([
         fetchMonthTransactions(supabase, household.id, month),
-        previousMonthTotal(supabase, household.id, month),
-        previousMonthTotal(supabase, household.id, previousMonth(month)),
+        fetchDailyTotals(supabase, household.id, monthStart(first), monthEnd(previousMonth(month))),
         listMonthBudgets(supabase, household.id, month),
       ]);
       setRows(txs);
-      setPrevious(prev);
-      setEarlier(twoBack);
+      setHistory(days);
       setBudgets(nextBudgets);
     } catch {
       setError(true);
@@ -63,9 +80,17 @@ function ReportsInner() {
   const summary = summarizeMonth(rows, month);
   const categories = spendByCategory(rows, catalogs.categories);
   const merchants = spendByMerchant(rows).slice(0, 5);
+  const paidWith = spendByPaymentMethod(rows);
   const largest = [...rows].sort((a, b) => b.amount - a.amount).slice(0, 5);
   const householdBudget = budgets.find((b) => !b.category_id);
   const topCategory = categories[0];
+  const prevMonth = previousMonth(month);
+  const trend = monthTotals(history, monthsBack(month, TREND_MONTHS)).map((row) =>
+    row.month === month ? { month, total } : row,
+  );
+  const previous = trend.find((row) => row.month === prevMonth)?.total ?? 0;
+  const paceCurrent = cumulativeDaily(dailyFromRows(rows), month, daysSoFar(month, todayISO()));
+  const pacePrevious = cumulativeDaily(history, prevMonth);
 
   return (
     <div className="space-y-5">
@@ -117,6 +142,18 @@ function ReportsInner() {
           </section>
 
           <Card>
+            <h2 className="mb-3 text-[16px] font-semibold">Month so far</h2>
+            <SpendPaceChart
+              month={month}
+              previousMonth={prevMonth}
+              current={paceCurrent}
+              previous={pacePrevious}
+              daysInMonth={daysInMonth(month)}
+              budget={householdBudget?.amount}
+            />
+          </Card>
+
+          <Card>
             <div className="mb-3 flex items-center justify-between gap-3">
               <h2 className="text-[16px] font-semibold">{formatMonthLabel(month)} summary</h2>
               <Link href={`/reports/summary?month=${month}`} className="inline-flex min-h-11 items-center text-[15px] font-semibold text-primary">
@@ -163,13 +200,11 @@ function ReportsInner() {
           </Card>
 
           <Card>
-            <h2 className="mb-3 text-[16px] font-semibold">Spending trend</h2>
-            <TrendBars
-              rows={[
-                { month: previousMonth(previousMonth(month)), total: earlier },
-                { month: previousMonth(month), total: previous },
-                { month: month, total },
-              ]}
+            <h2 className="mb-1 text-[16px] font-semibold">Last {TREND_MONTHS} months</h2>
+            <MonthTrendChart
+              months={trend}
+              selected={month}
+              onSelect={(next) => router.replace(`/reports?month=${next}`)}
             />
           </Card>
 
@@ -177,6 +212,13 @@ function ReportsInner() {
             <h2 className="mb-3 text-[16px] font-semibold">Category breakdown</h2>
             <CategoryBars rows={categories} onSelect={(id) => router.push(`/reports/category/${id}?month=${month}`)} />
           </Card>
+
+          {paidWith.some((row) => row.id !== "none") ? (
+            <Card>
+              <h2 className="mb-3 text-[16px] font-semibold">How you paid</h2>
+              <ShareBars rows={paidWith} />
+            </Card>
+          ) : null}
 
           <Card>
             <h2 className="mb-3 text-[16px] font-semibold">Top merchants</h2>
@@ -210,28 +252,6 @@ function ReportsInner() {
         </>
       )}
     </div>
-  );
-}
-
-function TrendBars({ rows }: { rows: { month: string; total: number }[] }) {
-  const max = Math.max(...rows.map((row) => row.total), 1);
-  return (
-    <ul className="space-y-3">
-      {rows.map((row) => (
-        <li key={row.month}>
-          <div className="mb-1 flex items-center justify-between gap-3">
-            <span className="text-[15px]">{formatMonthLabel(row.month)}</span>
-            <span className="tabular-nums text-[15px]">{formatINR(row.total)}</span>
-          </div>
-          <div className="h-2 overflow-hidden rounded-full bg-line" aria-hidden>
-            <div
-              className="bar-fill h-full rounded-full bg-primary"
-              style={{ width: `${Math.max(6, Math.round((row.total / max) * 100))}%` }}
-            />
-          </div>
-        </li>
-      ))}
-    </ul>
   );
 }
 

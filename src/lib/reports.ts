@@ -1,5 +1,15 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { daysElapsedInMonth, monthEnd, monthStart, previousMonth, startOfWeek, todayISO, weekDays, weekdayShort } from "@/lib/dates";
+import {
+  daysElapsedInMonth,
+  daysInMonth,
+  monthEnd,
+  monthStart,
+  previousMonth,
+  startOfWeek,
+  todayISO,
+  weekDays,
+  weekdayShort,
+} from "@/lib/dates";
 import type { Category, Merchant, Transaction } from "@/lib/types";
 
 export type MonthSummary = {
@@ -25,10 +35,101 @@ export type MerchantSpend = {
 const MONTH_MS = 60 * 1000;
 const monthMemo = new Map<string, { at: number; rows: Transaction[] }>();
 const prevMemo = new Map<string, { at: number; total: number }>();
+const dailyMemo = new Map<string, { at: number; days: Map<string, number> }>();
 
 export function clearMonthCache() {
   monthMemo.clear();
   prevMemo.clear();
+  dailyMemo.clear();
+}
+
+/** Spend per day (ISO date -> total) for a date range. Pages past the API's 1,000-row cap. */
+export async function fetchDailyTotals(
+  supabase: SupabaseClient,
+  householdId: string,
+  from: string,
+  to: string,
+): Promise<Map<string, number>> {
+  const key = `${householdId}:${from}:${to}`;
+  const hit = dailyMemo.get(key);
+  if (hit && Date.now() - hit.at < MONTH_MS) return hit.days;
+  const PAGE = 1000;
+  const days = new Map<string, number>();
+  for (let start = 0; ; start += PAGE) {
+    const { data, error } = await supabase
+      .from("transactions")
+      .select("amount, occurred_on")
+      .eq("household_id", householdId)
+      .gte("occurred_on", from)
+      .lte("occurred_on", to)
+      .order("id")
+      .range(start, start + PAGE - 1);
+    if (error) throw error;
+    for (const row of data ?? []) {
+      days.set(row.occurred_on, (days.get(row.occurred_on) ?? 0) + Number(row.amount));
+    }
+    if (!data || data.length < PAGE) break;
+  }
+  dailyMemo.set(key, { at: Date.now(), days });
+  return days;
+}
+
+export function dailyFromRows(rows: { amount: number; occurred_on: string }[]): Map<string, number> {
+  const days = new Map<string, number>();
+  for (const row of rows) days.set(row.occurred_on, (days.get(row.occurred_on) ?? 0) + row.amount);
+  return days;
+}
+
+/** The `count` months ending at `month`, oldest first. */
+export function monthsBack(month: string, count: number): string[] {
+  const out = [month];
+  while (out.length < count) out.unshift(previousMonth(out[0]));
+  return out;
+}
+
+export function monthTotals(days: Map<string, number>, months: string[]): { month: string; total: number }[] {
+  const totals = new Map(months.map((m) => [m, 0]));
+  for (const [iso, total] of days) {
+    const m = iso.slice(0, 7);
+    if (totals.has(m)) totals.set(m, totals.get(m)! + total);
+  }
+  return months.map((m) => ({ month: m, total: totals.get(m)! }));
+}
+
+/** Running total for each day 1..upTo of `month` (index 0 = day 1). */
+export function cumulativeDaily(days: Map<string, number>, month: string, upTo = daysInMonth(month)): number[] {
+  const out: number[] = [];
+  let running = 0;
+  for (let d = 1; d <= upTo; d++) {
+    running += days.get(`${month}-${String(d).padStart(2, "0")}`) ?? 0;
+    out.push(running);
+  }
+  return out;
+}
+
+/** How many days of `month` have happened by `today`: all of a past month, none of a future one. */
+export function daysSoFar(month: string, today = todayISO()): number {
+  const current = today.slice(0, 7);
+  if (month < current) return daysInMonth(month);
+  if (month > current) return 0;
+  return Number(today.slice(8));
+}
+
+export type ShareRow = { id: string; name: string; total: number; percent: number };
+
+export function spendByPaymentMethod(transactions: Transaction[]): ShareRow[] {
+  const map = new Map<string, ShareRow>();
+  for (const tx of transactions) {
+    const id = tx.payment_method?.id ?? "none";
+    const name = tx.payment_method?.name ?? "Not set";
+    const row = map.get(id) ?? { id, name, total: 0, percent: 0 };
+    row.total += tx.amount;
+    map.set(id, row);
+  }
+  const total = sum(transactions) || 1;
+  return [...map.values()]
+    .map((row) => ({ ...row, percent: Math.round((row.total / total) * 100) }))
+    .sort((a, b) => b.total - a.total);
 }
 
 export async function fetchMonthTransactions(

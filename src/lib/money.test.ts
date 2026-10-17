@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatINR, monthChangeCopy, parseAmount, percentChange } from "./money";
+import { formatINR, formatINRCompact, monthChangeCopy, parseAmount, percentChange } from "./money";
 
 describe("money", () => {
   it("formats Indian rupees", () => {
@@ -21,5 +21,15 @@ describe("money", () => {
     expect(monthChangeCopy(42262, 63077)).toBe("33% less than last month");
     expect(monthChangeCopy(33880, 28420)).toBe("19% more than last month");
     expect(monthChangeCopy(0, 0)).toBeNull();
+  });
+
+  it("shortens amounts for chart labels in Indian units", () => {
+    expect(formatINRCompact(540)).toBe("₹540");
+    expect(formatINRCompact(1250)).toBe("₹1.3K");
+    expect(formatINRCompact(12400)).toBe("₹12K");
+    expect(formatINRCompact(99_499)).toBe("₹99K");
+    expect(formatINRCompact(99_500)).toBe("₹1L");
+    expect(formatINRCompact(1_20_000)).toBe("₹1.2L");
+    expect(formatINRCompact(2_50_00_000)).toBe("₹2.5Cr");
   });
 });

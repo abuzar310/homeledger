@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { describe, expect, it } from "vitest";
-import { budgetProgress, upsertMonthBudget } from "./budgets";
+import { budgetPace, budgetProgress, upsertMonthBudget } from "./budgets";
 import type { Budget } from "./types";
 
 describe("budgetProgress", () => {
@@ -59,5 +59,21 @@ describe("upsertMonthBudget", () => {
     expect(calls).toEqual([
       { op: "insert", values: { household_id: "h1", category_id: "fuel", year_month: "2026-10-01", amount: 3000 } },
     ]);
+  });
+});
+
+describe("budgetPace", () => {
+  it("warns on the day the budget runs out at this rate", () => {
+    // ₹12,000 spent by 10 Oct is ₹1,200 a day; ₹20,000 lasts until the 17th.
+    expect(budgetPace(12000, 20000, "2026-10", "2026-10-10")).toEqual({ elapsedPercent: 32, projected: 37200, crossDay: 17 });
+  });
+
+  it("stays calm when spending is on track", () => {
+    expect(budgetPace(5000, 20000, "2026-10", "2026-10-15")).toEqual({ elapsedPercent: 48, projected: 10333, crossDay: null });
+  });
+
+  it("has no pace for a month that is not in progress", () => {
+    expect(budgetPace(5000, 20000, "2026-09", "2026-10-15")).toBeNull();
+    expect(budgetPace(5000, 0, "2026-10", "2026-10-15")).toBeNull();
   });
 });

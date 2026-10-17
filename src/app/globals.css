@@ -15,6 +15,8 @@
   --accent-soft: oklch(0.95 0.02 210);
   --warn: oklch(0.55 0.14 55);
   --danger: oklch(0.5 0.18 25);
+  /* Chart marks that are not the one in focus: a neutral step that still clears 3:1 on --surface. */
+  --chart-rest: color-mix(in oklab, var(--muted) 58%, var(--surface));
   --nav-h: 72px;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
@@ -43,6 +45,7 @@
   --color-accent-soft: var(--accent-soft);
   --color-warn: var(--warn);
   --color-danger: var(--danger);
+  --color-chart-rest: var(--chart-rest);
   --color-green: var(--primary);
   --color-green-soft: var(--primary-soft);
   --color-green-deep: var(--primary-deep);
