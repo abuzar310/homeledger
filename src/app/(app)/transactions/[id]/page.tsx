@@ -293,7 +293,10 @@ export default function TransactionDetailPage() {
           </PrimaryButton>
         </div>
       ) : (
-        <PrimaryButton onClick={() => setDraft(toDraft(tx))}>Edit expense</PrimaryButton>
+        <div className="grid grid-cols-2 gap-3">
+          <SecondaryButton onClick={() => router.push(`/add?again=${tx.id}`)}>Add again</SecondaryButton>
+          <PrimaryButton onClick={() => setDraft(toDraft(tx))}>Edit expense</PrimaryButton>
+        </div>
       )}
       <SecondaryButton className="w-full text-danger" onClick={() => setConfirm(true)}>
         Delete expense

@@ -39,7 +39,8 @@ export const TransactionRow = memo(function TransactionRow({
 
   return (
     <div className={`relative overflow-hidden border-b border-line last:border-b-0 ${highlight ? "row-in highlight-row" : ""}`}>
-      <div className="absolute inset-y-0 right-0 flex w-40">
+      {/* Hidden under the row until swiped open, so Tab and screen readers skip it until then. */}
+      <div className="absolute inset-y-0 right-0 flex w-40" inert={x === 0}>
         <Link
           href={`/transactions/${tx.id}`}
           className="flex flex-1 items-center justify-center bg-primary-soft text-[13px] font-semibold text-primary-deep"

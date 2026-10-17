@@ -31,6 +31,7 @@ function TransactionsInner() {
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [filters, setFilters] = useState<TransactionFilters>({});
   const [openFilters, setOpenFilters] = useState(false);
+  const [allMonths, setAllMonths] = useState(false);
   const [rows, setRows] = useState<Transaction[]>([]);
   const [page, setPage] = useState(0);
   const [busy, setBusy] = useState(true);
@@ -39,15 +40,20 @@ function TransactionsInner() {
   const [loadingMore, setLoadingMore] = useState(false);
   const loadingMoreRef = useRef(false);
 
+  // A search can cover every month; otherwise the list is the picked month (or the filter's own dates).
+  const searchAll = allMonths && Boolean(debouncedQuery.trim());
   const applied = useMemo<TransactionFilters>(
     () => ({
       ...filters,
-      from: filters.from || monthStart(month),
-      to: filters.to || monthEnd(month),
+      from: filters.from || (searchAll ? undefined : monthStart(month)),
+      to: filters.to || (searchAll ? undefined : monthEnd(month)),
       query: debouncedQuery,
     }),
-    [filters, month, debouncedQuery],
+    [filters, month, debouncedQuery, searchAll],
   );
+  const activeFilters = Object.entries(filters).filter(
+    ([key, value]) => key !== "query" && key !== "month" && value != null && value !== "",
+  ).length;
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQuery(query), 200);
@@ -83,15 +89,22 @@ function TransactionsInner() {
       }}
     >
     <div className="space-y-5">
-      <ScreenTitle title="Transactions" subtitle="Search or filter this month" />
+      <ScreenTitle title="Transactions" subtitle={searchAll ? "Searching every month" : "Search or filter this month"} />
       <div className="flex items-center justify-between gap-3">
         <MonthPicker value={month} onChange={(next) => router.replace(`/transactions?month=${next}`)} />
         <button
+          type="button"
           className="press inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl px-2 text-[15px] font-semibold text-primary"
           onClick={() => setOpenFilters(true)}
+          aria-label={activeFilters ? `Filter, ${activeFilters} active` : "Filter"}
         >
-          <SlidersHorizontal className="size-4" />
+          <SlidersHorizontal className="size-4" aria-hidden />
           Filter
+          {activeFilters ? (
+            <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[12px] leading-5 text-on-primary" aria-hidden>
+              {activeFilters}
+            </span>
+          ) : null}
         </button>
       </div>
       <div className="flex items-center gap-2">
@@ -109,6 +122,26 @@ function TransactionsInner() {
           </button>
         ) : null}
       </div>
+      {query.trim() ? (
+        <div className="flex gap-2" role="group" aria-label="Search in">
+          {[
+            { all: false, label: "This month" },
+            { all: true, label: "All months" },
+          ].map((option) => (
+            <button
+              key={option.label}
+              type="button"
+              aria-pressed={allMonths === option.all}
+              onClick={() => setAllMonths(option.all)}
+              className={`press min-h-11 rounded-full px-4 text-[14px] font-semibold ${
+                allMonths === option.all ? "bg-primary text-on-primary" : "bg-surface text-muted ring-1 ring-line"
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       {loading || (busy && !rows.length) ? (
         <div className="space-y-3" aria-busy="true" aria-label="Loading expenses">
@@ -146,8 +179,11 @@ function TransactionsInner() {
           title="No expenses found."
           body="Try another search, or add a new household expense."
           action={
-            <Link href="/add">
-              <PrimaryButton>Add expense</PrimaryButton>
+            <Link
+              href="/add"
+              className="press inline-flex min-h-12 w-full items-center justify-center rounded-2xl bg-primary px-4 text-[16px] font-semibold text-on-primary"
+            >
+              Add expense
             </Link>
           }
         />

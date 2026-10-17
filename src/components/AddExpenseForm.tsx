@@ -1,10 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { requestReceiptRead, shrinkReceiptPhoto } from "@/lib/ai-client";
 import type { ReceiptDraft } from "@/lib/ai-types";
-import { todayISO } from "@/lib/dates";
+import { parseBankSms } from "@/lib/bank-sms";
+import { formatRelativeDay, todayISO } from "@/lib/dates";
 import { formatINR, parseAmount } from "@/lib/money";
 import { enqueueOffline, isNetworkError } from "@/lib/offline";
 import { categorizeExpense, suggestCategoryLocal } from "@/lib/categorization";
@@ -12,7 +13,7 @@ import { shouldAskAi } from "@/lib/categorization/once";
 import { parseSmartEntry } from "@/lib/smart-entry";
 import { CHANNELS, CHANNEL_LABELS, type PurchaseChannel, type Transaction } from "@/lib/types";
 import { createClient } from "@/lib/supabase/client";
-import { saveExpense } from "@/lib/transactions";
+import { getTransaction, saveExpense } from "@/lib/transactions";
 import { useHousehold } from "./HouseholdProvider";
 import { SaveStatus } from "./SaveStatus";
 import { Field, PrimaryButton, Select, TextArea, TextInput } from "./ui";
@@ -43,7 +44,15 @@ type SpeechRec = {
   stop: () => void;
 };
 
-export function AddExpenseForm() {
+export function AddExpenseForm({
+  repeatId,
+  sms,
+}: {
+  /** Prefill from this expense ("Add again"), dated today. */
+  repeatId?: string;
+  /** A pasted bank/UPI SMS to fill the form from; `at` makes a repeat paste apply again. */
+  sms?: { text: string; at: number } | null;
+} = {}) {
   const router = useRouter();
   const { household, catalogs, userId } = useHousehold();
   const [details, setDetails] = useState(false);
@@ -129,6 +138,59 @@ export function AddExpenseForm() {
     if (draft.name && draft.amount != null && draft.name !== next) setName(draft.name);
     applyGuess(cleaned, draft.merchantName || merchantName);
   }
+
+  /** Fills the form from a bank or UPI SMS. Returns false when the text isn't one. */
+  function applySms(text: string): boolean {
+    const parsed = parseBankSms(text);
+    if (!parsed) return false;
+    if (parsed.kind === "credit") {
+      setVoiceNote("That SMS is money received, not spent, so nothing was filled in.");
+      return true;
+    }
+    const label = parsed.payee ?? (parsed.paymentHint === "UPI" ? "UPI payment" : "Bank payment");
+    setName(label);
+    setAmount(String(parsed.amount));
+    if (parsed.occurredOn) setDate(parsed.occurredOn);
+    if (parsed.payee) setMerchantName(parsed.payee);
+    const pay = parsed.paymentHint
+      ? catalogs.paymentMethods.find((p) => p.name.toLowerCase() === parsed.paymentHint!.toLowerCase())
+      : undefined;
+    if (pay) setPaymentMethodId(pay.id);
+    applyGuess(label, parsed.payee ?? merchantName);
+    setVoiceNote("Filled in from your bank SMS. Check it, then save.");
+    return true;
+  }
+
+  const appliedSms = useRef<number | null>(null);
+  useEffect(() => {
+    if (!sms || appliedSms.current === sms.at || !catalogs.categories.length) return;
+    appliedSms.current = sms.at;
+    applySms(sms.text);
+    // applySms reads the latest catalogs; re-running on every render would re-fill the form.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sms, catalogs.categories.length]);
+
+  const repeated = useRef<string | null>(null);
+  useEffect(() => {
+    if (!repeatId || !household || repeated.current === repeatId) return;
+    repeated.current = repeatId;
+    getTransaction(createClient(), repeatId, household.id)
+      .then((tx) => {
+        if (!tx) return;
+        setName(tx.name);
+        setAmount(String(tx.amount));
+        setCategoryId(tx.category_id ?? "");
+        setSubcategoryId(tx.subcategory_id ?? "");
+        setMerchantName(tx.merchant?.name ?? "");
+        setPaymentMethodId(tx.payment_method_id ?? "");
+        setChannel(tx.purchase_channel ?? "");
+        pickedRef.current = Boolean(tx.category_id);
+        const category = tx.category?.name;
+        setGuessLabel(category ? (tx.subcategory ? `${category} · ${tx.subcategory.name}` : category) : null);
+        setVoiceNote(`Copied from ${formatRelativeDay(tx.occurred_on)}. It is dated today; change the date if needed.`);
+      })
+      .catch(() => setError("Could not load that expense. Fill it in below."));
+  }, [repeatId, household]);
 
   function listen() {
     const rec = speechEngine();
@@ -349,6 +411,9 @@ export function AddExpenseForm() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             onBlur={(e) => applySmartName(e.target.value)}
+            onPaste={(e) => {
+              if (applySms(e.clipboardData.getData("text"))) e.preventDefault();
+            }}
             placeholder="Milk 54"
             autoFocus
           />
