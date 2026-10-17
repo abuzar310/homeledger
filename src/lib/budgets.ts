@@ -24,22 +24,14 @@ export async function upsertMonthBudget(
   categoryId?: string | null,
   existing?: Budget[],
 ): Promise<void> {
-  const year_month = monthStart(month);
   const category_id = categoryId || null;
-  if (!category_id) {
-    const current = (existing ?? []).find((row) => !row.category_id);
-    if (current) {
-      const { error } = await supabase.from("budgets").update({ amount }).eq("id", current.id);
-      if (error) throw error;
-      return;
-    }
-  }
-  const { error } = await supabase.from("budgets").upsert({
-    household_id: householdId,
-    category_id,
-    year_month,
-    amount,
-  });
+  // Update the row already set for this month and category; insert only when there is none.
+  const current = (existing ?? []).find((row) => (row.category_id || null) === category_id);
+  const { error } = current
+    ? await supabase.from("budgets").update({ amount }).eq("id", current.id)
+    : await supabase
+        .from("budgets")
+        .insert({ household_id: householdId, category_id, year_month: monthStart(month), amount });
   if (error) throw error;
 }
 
