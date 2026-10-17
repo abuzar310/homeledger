@@ -100,6 +100,80 @@ export function toInsightText(data: { text?: string } | null): string | null {
   return text.length > 180 ? `${text.slice(0, 177).trim()}…` : text;
 }
 
+// Input caps: whatever a client posts to the AI routes is coerced and trimmed
+// to size before it reaches a prompt.
+export const AI_INPUT_LIMITS = {
+  name: 200,
+  merchant: 200,
+  notes: 500,
+  topRows: 4,
+  topName: 40,
+  count: 100_000,
+  amount: 1e10,
+  /** ~4.5 MB of image; a 1600px JPEG receipt is far smaller. */
+  receiptBase64: 6_000_000,
+} as const;
+
+const RECEIPT_MIMES = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"];
+
+export function capText(value: unknown, max: number): string {
+  return String(value ?? "").slice(0, max);
+}
+
+function capAmount(value: unknown): number {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  return Math.round(Math.min(Math.max(n, 0), AI_INPUT_LIMITS.amount) * 100) / 100;
+}
+
+function fields(body: unknown): Record<string, unknown> {
+  return body && typeof body === "object" ? (body as Record<string, unknown>) : {};
+}
+
+export function toCategorizeInput(body: unknown): CategorizeInput | null {
+  const raw = fields(body);
+  const name = capText(raw.name, AI_INPUT_LIMITS.name).trim();
+  if (!name) return null;
+  return {
+    name,
+    notes: capText(raw.notes, AI_INPUT_LIMITS.notes),
+    merchantName: capText(raw.merchantName, AI_INPUT_LIMITS.merchant),
+  };
+}
+
+export function toInsightInput(body: unknown): InsightInput | null {
+  const raw = fields(body);
+  const month = typeof raw.month === "string" ? raw.month : "";
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return null;
+  if (typeof raw.total !== "number" || !Number.isFinite(raw.total)) return null;
+  return {
+    month,
+    total: capAmount(raw.total),
+    previous: capAmount(raw.previous),
+    count: Math.min(Math.max(Math.trunc(Number(raw.count)) || 0, 0), AI_INPUT_LIMITS.count),
+    top: Array.isArray(raw.top)
+      ? raw.top.slice(0, AI_INPUT_LIMITS.topRows).map((row) => {
+          const item = fields(row);
+          return { name: capText(item.name, AI_INPUT_LIMITS.topName), total: capAmount(item.total) };
+        })
+      : [],
+  };
+}
+
+export type ReceiptInput = { mime: string; data: string };
+
+/** "too_large" means the photo should be rejected with a 413, null means nothing usable. */
+export function toReceiptInput(body: unknown): ReceiptInput | "too_large" | null {
+  const raw = fields(body);
+  const data = typeof raw.data === "string" ? raw.data.trim() : "";
+  if (!data) return null;
+  if (data.length > AI_INPUT_LIMITS.receiptBase64) return "too_large";
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(data)) return null;
+  const mime = typeof raw.mime === "string" && raw.mime ? raw.mime.toLowerCase() : "image/jpeg";
+  if (!RECEIPT_MIMES.includes(mime)) return null;
+  return { mime, data };
+}
+
 type GeminiPart = { text: string } | { inline_data: { mime_type: string; data: string } };
 
 export async function geminiJson<T>(parts: GeminiPart[]): Promise<T | null> {

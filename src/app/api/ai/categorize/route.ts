@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { requireAiUser } from "@/lib/ai-auth";
-import { categorizeWithGemini, googleAiKey } from "@/lib/gemini";
-import type { CategorizeInput } from "@/lib/categorization/types";
+import { bodyTooLarge, requireAiUser } from "@/lib/ai-auth";
+import { categorizeWithGemini, googleAiKey, toCategorizeInput } from "@/lib/gemini";
 
 export const maxDuration = 20;
 
@@ -10,14 +9,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Sign in to use AI." }, { status: 401 });
   }
   if (!googleAiKey()) return NextResponse.json({ result: null });
+  if (bodyTooLarge(request, 16_000)) {
+    return NextResponse.json({ error: "That expense is too long to categorise." }, { status: 413 });
+  }
 
-  const body = (await request.json().catch(() => null)) as CategorizeInput | null;
-  if (!body?.name?.trim()) return NextResponse.json({ result: null });
+  const input = toCategorizeInput(await request.json().catch(() => null));
+  if (!input) return NextResponse.json({ result: null });
 
-  const result = await categorizeWithGemini({
-    name: body.name,
-    notes: body.notes,
-    merchantName: body.merchantName,
-  });
-  return NextResponse.json({ result });
+  try {
+    return NextResponse.json({ result: await categorizeWithGemini(input) });
+  } catch {
+    return NextResponse.json({ result: null, error: "AI is not available right now." }, { status: 502 });
+  }
 }

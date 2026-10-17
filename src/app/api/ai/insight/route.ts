@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { requireAiUser } from "@/lib/ai-auth";
-import { googleAiKey, insightWithGemini, type InsightInput } from "@/lib/gemini";
+import { bodyTooLarge, requireAiUser } from "@/lib/ai-auth";
+import { googleAiKey, insightWithGemini, toInsightInput } from "@/lib/gemini";
 
 export const maxDuration = 20;
 
@@ -9,23 +9,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Sign in to use AI." }, { status: 401 });
   }
   if (!googleAiKey()) return NextResponse.json({ text: null });
-
-  const body = (await request.json().catch(() => null)) as InsightInput | null;
-  if (!body || typeof body.total !== "number" || !body.month) {
-    return NextResponse.json({ text: null });
+  if (bodyTooLarge(request, 16_000)) {
+    return NextResponse.json({ error: "That request is too large." }, { status: 413 });
   }
 
-  const text = await insightWithGemini({
-    month: body.month,
-    total: body.total,
-    previous: Number(body.previous) || 0,
-    count: Number(body.count) || 0,
-    top: Array.isArray(body.top)
-      ? body.top.slice(0, 4).map((row) => ({
-          name: String(row?.name ?? "").slice(0, 40),
-          total: Number(row?.total) || 0,
-        }))
-      : [],
-  });
-  return NextResponse.json({ text });
+  const input = toInsightInput(await request.json().catch(() => null));
+  if (!input) return NextResponse.json({ text: null });
+
+  try {
+    return NextResponse.json({ text: await insightWithGemini(input) });
+  } catch {
+    return NextResponse.json({ text: null, error: "AI is not available right now." }, { status: 502 });
+  }
 }
