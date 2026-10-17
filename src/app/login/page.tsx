@@ -18,6 +18,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [gsiReady, setGsiReady] = useState(false);
 
   useEffect(() => {
@@ -75,6 +76,7 @@ export default function LoginPage() {
 
   async function withEmail() {
     setError(null);
+    setNotice(null);
     if (!email.trim() || password.length < 6) {
       setError("Enter your email and a password of at least 6 characters.");
       return;
@@ -91,7 +93,7 @@ export default function LoginPage() {
         if (signUpError) throw signUpError;
         if (!data.session) {
           setMode("in");
-          setError("Household created. Sign in with the same email.");
+          setNotice("Household created. Sign in with the same email.");
           setBusy(false);
           return;
         }
@@ -158,6 +160,11 @@ export default function LoginPage() {
             {error}
           </p>
         ) : null}
+        {notice ? (
+          <p className="text-[15px] text-accent" role="status">
+            {notice}
+          </p>
+        ) : null}
         <PrimaryButton type="submit" disabled={busy}>
           {mode === "up" ? "Create household" : "Sign in"}
         </PrimaryButton>
@@ -169,6 +176,7 @@ export default function LoginPage() {
         onClick={() => {
           setMode((m) => (m === "in" ? "up" : "in"));
           setError(null);
+          setNotice(null);
         }}
       >
         {mode === "in" ? "New here? Create a household" : "Already have one? Sign in"}
