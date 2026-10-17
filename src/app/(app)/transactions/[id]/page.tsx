@@ -16,13 +16,21 @@ export default function TransactionDetailPage() {
   const router = useRouter();
   const { household, catalogs } = useHousehold();
   const [tx, setTx] = useState<Transaction | null>(null);
+  const [missing, setMissing] = useState(false);
   const [editing, setEditing] = useState(false);
   const [confirm, setConfirm] = useState(false);
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    getTransaction(createClient(), id).then(setTx);
-  }, [id]);
+    if (!household) return;
+    setMissing(false);
+    getTransaction(createClient(), id, household.id)
+      .then((row) => {
+        setTx(row);
+        setMissing(!row);
+      })
+      .catch(() => setMissing(true));
+  }, [id, household]);
 
   useEffect(() => {
     const path = tx?.receipts?.[0]?.storage_path;
@@ -32,6 +40,18 @@ export default function TransactionDetailPage() {
       .createSignedUrl(path, 3600)
       .then(({ data }) => setReceiptUrl(data?.signedUrl ?? null));
   }, [tx]);
+
+  if (missing) {
+    return (
+      <div className="space-y-3">
+        <button className="min-h-11 text-[15px] font-semibold text-primary" onClick={() => router.back()}>
+          Back
+        </button>
+        <h1 className="text-[22px] font-semibold">Expense not found</h1>
+        <p className="text-[15px] text-muted">It may have been deleted, or it belongs to another home.</p>
+      </div>
+    );
+  }
 
   if (!tx) {
     return (

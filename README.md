@@ -15,7 +15,7 @@ A mobile-first household expense app. Add Milk and ₹54 in a few seconds. The a
 ## Local setup
 
 1. Copy `.env.example` to `.env.local` and add your Supabase URL and anon key.
-2. In the Supabase SQL editor, run `supabase/migrations/0001_init.sql` then `0002_profiles.sql`.
+2. In the Supabase SQL editor, run `supabase/migrations/0001_init.sql` through `0004_prod_ready.sql` in order.
 3. Email sign-in works immediately when confirmation is off (autoconfirm).
 4. Google: create a Web OAuth client in Google Cloud. Authorized JavaScript origins are your app URL and `http://localhost:3000`. Authorized redirect URI is `https://<project-ref>.supabase.co/auth/v1/callback`. Put the client ID and secret in `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` and run `node scripts/enable-google-auth.mjs`.
 5. Optional Gemini: create a Google AI Studio key and set `GOOGLE_API_KEY` in `.env.local` and Vercel. Never prefix it with `NEXT_PUBLIC_`. The app still works without it.
