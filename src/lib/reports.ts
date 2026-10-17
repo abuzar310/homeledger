@@ -10,6 +10,7 @@ import {
   weekDays,
   weekdayShort,
 } from "@/lib/dates";
+import { allPages } from "@/lib/paging";
 import type { Category, Merchant, Transaction } from "@/lib/types";
 
 export type MonthSummary = {
@@ -36,21 +37,6 @@ const MONTH_MS = 60 * 1000;
 const monthMemo = new Map<string, { at: number; rows: Transaction[] }>();
 const prevMemo = new Map<string, { at: number; total: number }>();
 const dailyMemo = new Map<string, { at: number; days: Map<string, number> }>();
-
-const PAGE = 1000;
-
-/** Runs a range query page by page: the API returns at most 1,000 rows per request. */
-async function allPages(
-  page: (from: number, to: number) => PromiseLike<{ data: unknown[] | null; error: unknown }>,
-): Promise<unknown[]> {
-  const out: unknown[] = [];
-  for (let start = 0; ; start += PAGE) {
-    const { data, error } = await page(start, start + PAGE - 1);
-    if (error) throw error;
-    out.push(...(data ?? []));
-    if (!data || data.length < PAGE) return out;
-  }
-}
 
 export function clearMonthCache() {
   monthMemo.clear();
@@ -249,14 +235,17 @@ export async function previousMonthTotal(
   const key = `${householdId}:${prev}`;
   const hit = prevMemo.get(key);
   if (hit && Date.now() - hit.at < MONTH_MS) return hit.total;
-  const { data, error } = await supabase
-    .from("transactions")
-    .select("amount")
-    .eq("household_id", householdId)
-    .gte("occurred_on", monthStart(prev))
-    .lte("occurred_on", monthEnd(prev));
-  if (error) throw error;
-  const total = sum((data ?? []).map((row) => ({ amount: Number(row.amount) })));
+  const data = (await allPages((from, to) =>
+    supabase
+      .from("transactions")
+      .select("amount")
+      .eq("household_id", householdId)
+      .gte("occurred_on", monthStart(prev))
+      .lte("occurred_on", monthEnd(prev))
+      .order("id")
+      .range(from, to),
+  )) as { amount: unknown }[];
+  const total = sum(data.map((row) => ({ amount: Number(row.amount) })));
   prevMemo.set(key, { at: Date.now(), total });
   return total;
 }

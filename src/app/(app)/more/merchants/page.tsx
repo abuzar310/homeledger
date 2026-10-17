@@ -6,6 +6,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { useHousehold } from "@/components/HouseholdProvider";
 import { Card, PrimaryButton, ScreenTitle } from "@/components/ui";
 import { formatINR } from "@/lib/money";
+import { allPages } from "@/lib/paging";
 import { createClient } from "@/lib/supabase/client";
 import type { Merchant } from "@/lib/types";
 
@@ -29,11 +30,20 @@ export default function MerchantsPage() {
           .select("id, household_id, name, normalized_name, default_category_id, default_subcategory_id, default_channel")
           .eq("household_id", household.id)
           .order("name"),
-        supabase.from("transactions").select("merchant_id, amount").eq("household_id", household.id),
+        // Every expense with a merchant, past the API's 1,000-row cap, so old totals stay complete.
+        allPages((from, to) =>
+          supabase
+            .from("transactions")
+            .select("merchant_id, amount")
+            .eq("household_id", household.id)
+            .not("merchant_id", "is", null)
+            .order("id")
+            .range(from, to),
+        ) as Promise<{ merchant_id: string | null; amount: unknown }[]>,
       ]);
-      if (merchants.error || txs.error) throw merchants.error ?? txs.error;
+      if (merchants.error) throw merchants.error;
       const stats = new Map<string, { total: number; count: number }>();
-      for (const tx of txs.data ?? []) {
+      for (const tx of txs) {
         if (!tx.merchant_id) continue;
         const current = stats.get(tx.merchant_id) ?? { total: 0, count: 0 };
         current.total += Number(tx.amount);
