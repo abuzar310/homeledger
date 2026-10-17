@@ -8,9 +8,9 @@ import { PrimaryButton } from "./ui";
 import { todayISO } from "@/lib/dates";
 import { FILL_TEMPLATES, resolveTemplate, templateById, type FillTemplate } from "@/lib/fill";
 import { parseAmount } from "@/lib/money";
-import { enqueueOffline } from "@/lib/offline";
+import { enqueueOffline, isNetworkError } from "@/lib/offline";
 import { createClient } from "@/lib/supabase/client";
-import { saveExpense } from "@/lib/transactions";
+import { saveExpense, type SaveExpenseInput } from "@/lib/transactions";
 
 type Row = { id: string; name: string; qty: string; amount: string };
 
@@ -28,6 +28,7 @@ export function FillBoard({ chip }: { chip?: string }) {
   const [bill, setBill] = useState("");
   const [status, setStatus] = useState<"idle" | "saving" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const templates = useMemo(() => {
     if (!chip) return FILL_TEMPLATES;
@@ -42,9 +43,16 @@ export function FillBoard({ chip }: { chip?: string }) {
     }));
   }
 
+  function removeRow(id: string, rowId: string) {
+    setRows((cur) => {
+      const left = (cur[id] ?? []).filter((row) => row.id !== rowId);
+      return { ...cur, [id]: left.length ? left : [emptyRow()] };
+    });
+  }
+
   async function saveAll() {
-    if (!household || !userId) return;
-    const drafts: { template: FillTemplate; row: Row; amount: number; name: string }[] = [];
+    if (!household || !userId || status === "saving") return;
+    const drafts: { template: FillTemplate; row: Row; input: SaveExpenseInput }[] = [];
     for (const template of templates) {
       for (const row of rows[template.id] ?? []) {
         const amount = parseAmount(row.amount);
@@ -54,7 +62,24 @@ export function FillBoard({ chip }: { chip?: string }) {
           (template.kind === "qty" && row.qty
             ? `${template.defaultName ?? template.label} ${row.qty}L`
             : template.defaultName || template.label);
-        drafts.push({ template, row, amount, name });
+        const resolved = resolveTemplate(catalogs, template);
+        const billSub =
+          template.kind === "bills" && bill ? catalogs.subcategories.find((s) => s.id === bill) : undefined;
+        drafts.push({
+          template,
+          row,
+          input: {
+            name,
+            amount,
+            occurredOn: date,
+            notes: row.qty ? `${row.qty} litre` : undefined,
+            categoryId: resolved.category?.id,
+            subcategoryId: billSub?.id ?? resolved.subcategory?.id,
+            // The row id is stable, so a retry or a queued copy can never book the row twice.
+            clientRequestId: row.id,
+            userCategorized: true,
+          },
+        });
       }
     }
     if (!drafts.length) {
@@ -63,35 +88,37 @@ export function FillBoard({ chip }: { chip?: string }) {
     }
     setStatus("saving");
     setError(null);
-    try {
-      const supabase = createClient();
-      for (const draft of drafts) {
-        const resolved = resolveTemplate(catalogs, draft.template);
-        const billSub = bill ? catalogs.subcategories.find((s) => s.id === bill) : resolved.subcategory;
-        await saveExpense(supabase, household.id, userId, catalogs, {
-          name: draft.name,
-          amount: draft.amount,
-          occurredOn: date,
-          notes: draft.row.qty ? `${draft.row.qty} litre` : undefined,
-          categoryId: resolved.category?.id,
-          subcategoryId: billSub?.id ?? resolved.subcategory?.id,
-          clientRequestId: crypto.randomUUID(),
-          userCategorized: true,
-        });
+    setNotice(null);
+    const supabase = createClient();
+    let saved = 0;
+    for (const [index, draft] of drafts.entries()) {
+      try {
+        if (!navigator.onLine) throw new TypeError("Failed to fetch");
+        await saveExpense(supabase, household.id, userId, catalogs, draft.input);
+        saved += 1;
+        removeRow(draft.template.id, draft.row.id);
+      } catch (err) {
+        const unsaved = drafts.slice(index);
+        if (isNetworkError(err)) {
+          for (const left of unsaved) {
+            enqueueOffline(left.input, { userId, householdId: household.id });
+            removeRow(left.template.id, left.row.id);
+          }
+          setStatus("idle");
+          setNotice(
+            `${unsaved.length === 1 ? "1 expense is" : `${unsaved.length} expenses are`} saved on this phone. ${
+              unsaved.length === 1 ? "It" : "They"
+            } will sync when you are online.`,
+          );
+          window.setTimeout(() => router.replace("/home"), 1600);
+          return;
+        }
+        setStatus("error");
+        setError(saved ? `${saved} saved. The rest could not be saved. Try again.` : "Could not save. Try again.");
+        return;
       }
-      router.replace("/home?added=fill");
-    } catch {
-      if (drafts[0]) {
-        enqueueOffline({
-          name: drafts[0].name,
-          amount: drafts[0].amount,
-          occurredOn: date,
-          clientRequestId: crypto.randomUUID(),
-        });
-      }
-      setStatus("error");
-      setError("Could not save. Try again.");
     }
+    router.replace("/home?added=fill");
   }
 
   const billSubs = catalogs.subcategories.filter((s) => {
@@ -118,7 +145,7 @@ export function FillBoard({ chip }: { chip?: string }) {
             <h2 className="text-[16px] font-semibold">{template.label}</h2>
             <button
               type="button"
-              className="press flex size-9 items-center justify-center rounded-full text-primary"
+              className="press flex size-11 items-center justify-center rounded-full text-primary"
               aria-label={`Add another ${template.label} row`}
               onClick={() => setRows((cur) => ({ ...cur, [template.id]: [...(cur[template.id] ?? []), emptyRow()] }))}
             >
@@ -132,7 +159,8 @@ export function FillBoard({ chip }: { chip?: string }) {
                   key={sub.id}
                   type="button"
                   onClick={() => setBill(sub.id)}
-                  className={`press rounded-full px-3 py-1.5 text-[13px] ${
+                  aria-pressed={bill === sub.id}
+                  className={`press min-h-11 rounded-full px-3 py-1.5 text-[13px] ${
                     bill === sub.id ? "bg-primary text-on-primary" : "bg-bg text-muted ring-1 ring-line"
                   }`}
                 >
@@ -177,7 +205,12 @@ export function FillBoard({ chip }: { chip?: string }) {
       ))}
 
       {error ? <p className="text-[14px] text-danger">{error}</p> : null}
-      <PrimaryButton disabled={status === "saving"} onClick={() => void saveAll()}>
+      {notice ? (
+        <p className="text-[14px] text-accent" aria-live="polite">
+          {notice}
+        </p>
+      ) : null}
+      <PrimaryButton disabled={status === "saving" || Boolean(notice)} onClick={() => void saveAll()}>
         {status === "saving" ? "Saving…" : chip ? "Add" : "Add all"}
       </PrimaryButton>
     </div>

@@ -2,20 +2,26 @@
 
 import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
-import { requestReceiptRead } from "@/lib/ai-client";
+import { requestReceiptRead, shrinkReceiptPhoto } from "@/lib/ai-client";
 import type { ReceiptDraft } from "@/lib/ai-types";
 import { todayISO } from "@/lib/dates";
 import { formatINR, parseAmount } from "@/lib/money";
-import { enqueueOffline } from "@/lib/offline";
+import { enqueueOffline, isNetworkError } from "@/lib/offline";
 import { categorizeExpense, suggestCategoryLocal } from "@/lib/categorization";
 import { shouldAskAi } from "@/lib/categorization/once";
 import { parseSmartEntry } from "@/lib/smart-entry";
-import { CHANNELS, CHANNEL_LABELS, type PurchaseChannel } from "@/lib/types";
+import { CHANNELS, CHANNEL_LABELS, type PurchaseChannel, type Transaction } from "@/lib/types";
 import { createClient } from "@/lib/supabase/client";
 import { saveExpense } from "@/lib/transactions";
 import { useHousehold } from "./HouseholdProvider";
 import { SaveStatus } from "./SaveStatus";
 import { Field, PrimaryButton, Select, TextArea, TextInput } from "./ui";
+
+function receiptExtension(type: string): string {
+  if (type === "image/jpeg") return "jpg";
+  const sub = type.startsWith("image/") ? type.slice(6).replace(/[^a-z0-9]/gi, "").toLowerCase() : "";
+  return sub || "jpg";
+}
 
 function speechEngine() {
   const Ctor =
@@ -54,14 +60,18 @@ export function AddExpenseForm() {
   const [receipt, setReceipt] = useState<File | null>(null);
   const [scan, setScan] = useState<"idle" | "reading" | "filled" | "skipped">("idle");
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
-  const [savedLabel, setSavedLabel] = useState<{ name: string; amount: string; category: string } | null>(null);
-  const [requestId, setRequestId] = useState(() => crypto.randomUUID());
+  const [savedLabel, setSavedLabel] = useState<{ name: string; amount: string; category: string; note?: string } | null>(
+    null,
+  );
+  // One id per expense: a retry after a failure is deduped by saveExpense instead of booked twice.
+  const [requestId] = useState(() => crypto.randomUUID());
   const [error, setError] = useState<string | null>(null);
   const [listening, setListening] = useState(false);
   const [voiceNote, setVoiceNote] = useState<string | null>(null);
   const [guessLabel, setGuessLabel] = useState<string | null>(null);
   const [changing, setChanging] = useState(false);
   const pickedRef = useRef(false);
+  const savingRef = useRef(false);
   const receiptInput = useRef<HTMLInputElement>(null);
 
   const subs = useMemo(
@@ -184,13 +194,16 @@ export function AddExpenseForm() {
     }
   }
 
-  async function onReceipt(file: File | null) {
-    setReceipt(file);
-    if (!file) {
+  async function onReceipt(picked: File | null) {
+    if (!picked) {
+      setReceipt(null);
       setScan("idle");
       return;
     }
+    setReceipt(picked);
     setScan("reading");
+    const file = await shrinkReceiptPhoto(picked);
+    setReceipt(file);
     const draft = await requestReceiptRead(file);
     if (draft) {
       applyDraft(draft);
@@ -231,51 +244,75 @@ export function AddExpenseForm() {
       clientRequestId: requestId,
       userCategorized: pickedRef.current,
     };
+    const owner = { userId, householdId: household.id };
+    const queuedNote = receipt ? "The receipt photo could not be kept offline." : undefined;
     if (typeof navigator !== "undefined" && !navigator.onLine) {
-      enqueueOffline(payload);
+      enqueueOffline(payload, owner);
       setSavedLabel({
         name: name.trim(),
         amount: formatINR(parsed),
         category: "Saved on this phone. It will sync when you are online.",
+        note: queuedNote,
       });
       setStatus("saved");
-      window.setTimeout(() => router.replace("/home"), 1100);
+      window.setTimeout(() => router.replace("/home"), queuedNote ? 2400 : 1100);
       return;
     }
+    if (savingRef.current) return;
+    savingRef.current = true;
     setStatus("saving");
+    let saved: Transaction;
+    const supabase = createClient();
     try {
-      const supabase = createClient();
-      const saved = await saveExpense(supabase, household.id, userId, catalogs, payload);
-      if (receipt) {
-        const path = `${household.id}/${saved.id}/${receipt.name}`;
-        const { error: uploadError } = await supabase.storage.from("receipts").upload(path, receipt, { upsert: true });
-        if (!uploadError) {
-          await supabase.from("receipts").insert({
-            household_id: household.id,
-            transaction_id: saved.id,
-            storage_path: path,
-            file_name: receipt.name,
-          });
-        }
+      saved = await saveExpense(supabase, household.id, userId, catalogs, payload);
+    } catch (err) {
+      savingRef.current = false;
+      if (isNetworkError(err)) {
+        enqueueOffline(payload, owner);
+        setSavedLabel({
+          name: name.trim(),
+          amount: formatINR(parsed),
+          category: "Saved on this phone. It will sync when you are online.",
+          note: queuedNote,
+        });
+        setStatus("saved");
+        window.setTimeout(() => router.replace("/home"), queuedNote ? 2400 : 1100);
+        return;
       }
-      setSavedLabel({
-        name: saved.name,
-        amount: formatINR(saved.amount),
-        category: saved.category?.name ?? "Organised for you",
-      });
-      setStatus("saved");
-      window.setTimeout(() => {
-        router.replace(`/home?added=${saved.id}`);
-      }, 900);
-    } catch {
-      enqueueOffline(payload);
-      setSavedLabel({
-        name: name.trim(),
-        amount: formatINR(parsed),
-        category: "Saved on this phone. It will sync when you are online.",
-      });
-      setStatus("saved");
+      setStatus("error");
+      setError("Could not save this expense. Check the details and try again.");
+      return;
     }
+    let receiptFailed = false;
+    if (receipt) {
+      try {
+        const ext = receiptExtension(receipt.type);
+        const path = `${household.id}/${saved.id}/${crypto.randomUUID()}.${ext}`;
+        const { error: uploadError } = await supabase.storage
+          .from("receipts")
+          .upload(path, receipt, { upsert: true, contentType: receipt.type || "image/jpeg" });
+        if (uploadError) throw uploadError;
+        const { error: rowError } = await supabase.from("receipts").insert({
+          household_id: household.id,
+          transaction_id: saved.id,
+          storage_path: path,
+          file_name: receipt.name,
+        });
+        if (rowError) throw rowError;
+      } catch {
+        receiptFailed = true;
+      }
+    }
+    setSavedLabel({
+      name: saved.name,
+      amount: formatINR(saved.amount),
+      category: saved.category?.name ?? "Organised for you",
+      note: receiptFailed ? "Saved. The receipt photo could not be uploaded." : undefined,
+    });
+    setStatus("saved");
+    window.setTimeout(() => {
+      router.replace(`/home?added=${saved.id}`);
+    }, receiptFailed ? 2400 : 900);
   }
 
   if (savedLabel) {
@@ -289,6 +326,11 @@ export function AddExpenseForm() {
         <p className="hero-amount mt-2">{savedLabel.amount}</p>
         <div className="ledger-rule mx-auto mt-3" aria-hidden />
         <p className="mt-3 text-muted">{savedLabel.category}</p>
+        {savedLabel.note ? (
+          <p className="mt-2 text-[15px] text-danger" role="status">
+            {savedLabel.note}
+          </p>
+        ) : null}
       </div>
     );
   }
@@ -525,7 +567,6 @@ export function AddExpenseForm() {
       <SaveStatus
         state={status}
         onRetry={() => {
-          setRequestId(crypto.randomUUID());
           void submit();
         }}
       />
