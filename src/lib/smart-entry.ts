@@ -21,7 +21,15 @@ const NUMBER = String.raw`(?:\d{1,3}(?:,\d{2})+,\d{3}|\d{1,3}(?:,\d{3})+|\d+)(?:
 const MARKED = new RegExp(String.raw`(?:₹|rs\.?\s+)(${NUMBER})`, "i");
 const NUMBERS = new RegExp(`(${NUMBER})`, "g");
 
-export function parseSmartEntry(raw: string): SmartDraft {
+// Voice in Hindi or Kannada can come back with Devanagari (०-९) or Kannada (೦-೯) digits.
+function asciiDigits(value: string): string {
+  return value
+    .replace(/[०-९]/g, (d) => String(d.charCodeAt(0) - 0x0966))
+    .replace(/[೦-೯]/g, (d) => String(d.charCodeAt(0) - 0x0ce6));
+}
+
+export function parseSmartEntry(input: string): SmartDraft {
+  const raw = asciiDigits(input);
   let text = raw.trim();
   if (!text) return { name: "", amount: null, merchantName: null, paymentHint: null };
 
@@ -42,6 +50,8 @@ export function parseSmartEntry(raw: string): SmartDraft {
 
   text = text
     .replace(/\b(spent|spend|paid|using|with|on|for|rupees?|rs)\b/gi, " ")
+    // "Rupees" in Hindi and Kannada; \b only knows Latin letters, so match on spaces.
+    .replace(/(?:^|\s)(?:रुपये|रुपए|रुपया|ರೂಪಾಯಿ|ರೂ)(?=\s|$)/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 

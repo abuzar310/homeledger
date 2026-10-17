@@ -28,6 +28,43 @@ export async function listMemberNames(supabase: SupabaseClient, householdId: str
   return new Map(rows.map((row) => [row.id, fullNames.get(row.user_id) || row.display_name || "Member"]));
 }
 
+const HOME_CACHE = "hl-home";
+
+/** The last home this phone loaded, so the app can still open (and queue expenses) offline. */
+export type HomeSnapshot = {
+  userId: string;
+  user: unknown;
+  household: Household;
+  catalogs: Catalogs;
+  profile: unknown;
+};
+
+export function readHomeSnapshot(): HomeSnapshot | null {
+  try {
+    const snap = JSON.parse(localStorage.getItem(HOME_CACHE) || "null") as HomeSnapshot | null;
+    return snap?.userId && snap.household?.id ? snap : null;
+  } catch {
+    return null;
+  }
+}
+
+export function writeHomeSnapshot(snap: HomeSnapshot) {
+  try {
+    localStorage.setItem(HOME_CACHE, JSON.stringify(snap));
+  } catch {
+    /* storage full or blocked: offline opens just won't have it */
+  }
+}
+
+/** On sign-out: shared phones must not keep the last person's home. */
+export function clearHomeSnapshot() {
+  try {
+    localStorage.removeItem(HOME_CACHE);
+  } catch {
+    /* ignore */
+  }
+}
+
 const CATALOG_CACHE = "hl-catalogs";
 const CATALOG_MS = 5 * 60 * 1000;
 

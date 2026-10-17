@@ -6,7 +6,7 @@ import { Moon, Smartphone, Sun } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useHousehold } from "@/components/HouseholdProvider";
 import { Card, Field, PrimaryButton, ScreenTitle, TextInput } from "@/components/ui";
-import { clearCatalogCache } from "@/lib/household";
+import { clearCatalogCache, clearHomeSnapshot } from "@/lib/household";
 import { clearOfflineQueueFor, flushOfflineQueue, queuedFor } from "@/lib/offline";
 import { saveProfile } from "@/lib/profile";
 import { clearMonthCache } from "@/lib/reports";
@@ -104,10 +104,14 @@ export default function ProfilePage() {
         return;
       }
     }
-    await createClient().auth.signOut();
+    const supabase = createClient();
+    const { error: signOutError } = await supabase.auth.signOut();
+    // Offline the server call fails and the session would stay; end it on this phone anyway.
+    if (signOutError) await supabase.auth.signOut({ scope: "local" });
     // Shared phones: nothing from this account should be left for the next person.
     if (userId) clearOfflineQueueFor(userId);
     clearCatalogCache();
+    clearHomeSnapshot();
     clearMonthCache();
     router.replace("/login");
     router.refresh();

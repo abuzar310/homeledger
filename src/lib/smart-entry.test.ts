@@ -53,3 +53,17 @@ describe("parseSmartEntry with grouped amounts", () => {
     expect(parseSmartEntry("Milk 2, eggs 60").amount).toBe(60);
   });
 });
+
+describe("parseSmartEntry in Hindi and Kannada", () => {
+  it("reads Devanagari digits and drops रुपये", () => {
+    expect(parseSmartEntry("दूध ५४ रुपये")).toMatchObject({ name: "दूध", amount: 54 });
+  });
+
+  it("reads Kannada digits and drops ರೂಪಾಯಿ", () => {
+    expect(parseSmartEntry("ಹಾಲು ೫೪ ರೂಪಾಯಿ")).toMatchObject({ name: "ಹಾಲು", amount: 54 });
+  });
+
+  it("keeps a Hindi name with ASCII digits", () => {
+    expect(parseSmartEntry("सब्ज़ी 120")).toMatchObject({ name: "सब्ज़ी", amount: 120 });
+  });
+});

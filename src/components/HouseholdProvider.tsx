@@ -3,7 +3,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { User } from "@supabase/supabase-js";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
-import { ensureHousehold, loadCatalogs } from "@/lib/household";
+import { ensureHousehold, loadCatalogs, readHomeSnapshot, writeHomeSnapshot } from "@/lib/household";
+import { isNetworkError } from "@/lib/offline";
 import { loadProfile, type Profile } from "@/lib/profile";
 import type { Catalogs, Household } from "@/lib/types";
 
@@ -44,7 +45,19 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
       data: { session },
     } = await supabase.auth.getSession();
     const current = session?.user ?? null;
+    // Offline, the last home on this phone lets the app open and queue expenses until it syncs.
+    const applySnapshot = (userId: string | null) => {
+      const snap = readHomeSnapshot();
+      if (!snap || (userId && snap.userId !== userId)) return false;
+      setUser(snap.user as User);
+      setHousehold(snap.household);
+      setCatalogs(snap.catalogs);
+      setProfile(snap.profile as Profile | null);
+      return true;
+    };
     if (!current) {
+      // An expired token can't be refreshed offline; the snapshot is cleared on sign-out.
+      if (typeof navigator !== "undefined" && !navigator.onLine && applySnapshot(null)) return;
       setUser(null);
       setProfile(null);
       setHousehold(null);
@@ -52,14 +65,20 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
       return;
     }
     setUser(current);
-    const [nextHousehold, nextCatalogs, nextProfile] = await Promise.all([
-      ensureHousehold(supabase),
-      loadCatalogs(supabase, { fresh }),
-      loadProfile(supabase, current),
-    ]);
-    setHousehold(nextHousehold);
-    setCatalogs(nextCatalogs);
-    setProfile(nextProfile);
+    try {
+      const [nextHousehold, nextCatalogs, nextProfile] = await Promise.all([
+        ensureHousehold(supabase),
+        loadCatalogs(supabase, { fresh }),
+        loadProfile(supabase, current),
+      ]);
+      setHousehold(nextHousehold);
+      setCatalogs(nextCatalogs);
+      setProfile(nextProfile);
+      writeHomeSnapshot({ userId: current.id, user: current, household: nextHousehold, catalogs: nextCatalogs, profile: nextProfile });
+    } catch (err) {
+      if (isNetworkError(err) && applySnapshot(current.id)) return;
+      throw err;
+    }
   }, []);
 
   const refresh = useCallback(() => load(true), [load]);

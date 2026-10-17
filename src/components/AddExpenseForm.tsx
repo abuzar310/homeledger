@@ -24,6 +24,13 @@ function receiptExtension(type: string): string {
   return sub || "jpg";
 }
 
+const VOICE_LANGS = [
+  { code: "en-IN", label: "English" },
+  { code: "hi-IN", label: "हिंदी" },
+  { code: "kn-IN", label: "ಕನ್ನಡ" },
+] as const;
+const VOICE_KEY = "hl-voice-lang";
+
 function speechEngine() {
   const Ctor =
     typeof window === "undefined"
@@ -76,6 +83,7 @@ export function AddExpenseForm({
   const [requestId] = useState(() => crypto.randomUUID());
   const [error, setError] = useState<string | null>(null);
   const [listening, setListening] = useState(false);
+  const [voiceLang, setVoiceLang] = useState<string>("en-IN");
   const [voiceNote, setVoiceNote] = useState<string | null>(null);
   const [guessLabel, setGuessLabel] = useState<string | null>(null);
   const [changing, setChanging] = useState(false);
@@ -161,6 +169,24 @@ export function AddExpenseForm({
     return true;
   }
 
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(VOICE_KEY);
+      if (saved && VOICE_LANGS.some((lang) => lang.code === saved)) setVoiceLang(saved);
+    } catch {
+      /* storage blocked: English */
+    }
+  }, []);
+
+  function pickVoiceLang(code: string) {
+    setVoiceLang(code);
+    try {
+      localStorage.setItem(VOICE_KEY, code);
+    } catch {
+      /* still used for this visit */
+    }
+  }
+
   const appliedSms = useRef<number | null>(null);
   useEffect(() => {
     if (!sms || appliedSms.current === sms.at || !catalogs.categories.length) return;
@@ -198,7 +224,7 @@ export function AddExpenseForm({
       setError("Voice works in Chrome or the Android app. You can still type the expense.");
       return;
     }
-    rec.lang = "en-IN";
+    rec.lang = voiceLang;
     rec.interimResults = false;
     rec.onresult = (event) => {
       const spoken = event.results[0]?.[0]?.transcript?.trim();
@@ -427,6 +453,23 @@ export function AddExpenseForm({
           </button>
         </div>
       </Field>
+      <div className="-mt-3 flex items-center gap-1.5" role="group" aria-label="Voice language">
+        <span className="text-[13px] text-muted">Speak in</span>
+        {VOICE_LANGS.map((lang) => (
+          <button
+            key={lang.code}
+            type="button"
+            lang={lang.code}
+            aria-pressed={voiceLang === lang.code}
+            onClick={() => pickVoiceLang(lang.code)}
+            className={`press min-h-11 rounded-full px-3 text-[13px] font-semibold ${
+              voiceLang === lang.code ? "bg-primary-soft text-primary-deep" : "text-muted"
+            }`}
+          >
+            {lang.label}
+          </button>
+        ))}
+      </div>
       {voiceNote ? <p className="text-[15px] text-accent">{voiceNote}</p> : null}
       <label className="block">
         <span className="mb-1.5 block text-[15px] font-medium text-ink">Amount</span>
