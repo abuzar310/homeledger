@@ -20,8 +20,27 @@ export function MonthInsight({
   const topKey = top.map((row) => `${row.name}:${row.total}`).join("|");
 
   useEffect(() => {
+    // The same month with the same total and count reuses this tab's earlier note instead of asking AI again.
+    const key = `hl-insight:${month}:${total}:${count}`;
+    let cached: string | null = null;
+    try {
+      cached = sessionStorage.getItem(key);
+    } catch {
+      /* storage blocked: ask again */
+    }
+    if (cached) {
+      setText(cached);
+      return;
+    }
     let cancelled = false;
     requestMonthInsight({ month, total, previous, count, top }).then((next) => {
+      if (next) {
+        try {
+          sessionStorage.setItem(key, next);
+        } catch {
+          /* ignore quota */
+        }
+      }
       if (!cancelled) setText(next);
     });
     return () => {
