@@ -88,8 +88,21 @@ export function transactionsToPdf(rows: Transaction[], title: string): Uint8Arra
     "",
     ...rows.slice(0, 40).map((row) => `${row.occurred_on}  ${row.name}  ${formatINR(row.amount)}`),
   ];
-  if (rows.length > 40) lines.push(`…and ${rows.length - 40} more`);
-  return buildSimplePdf(lines);
+  if (rows.length > 40) lines.push(`...and ${rows.length - 40} more`);
+  return buildSimplePdf(lines.map(pdfText));
+}
+
+// The PDF uses the built-in Helvetica font, which only has WinAnsi (Latin-1) characters,
+// so ₹, … and curly quotes become plain text and anything else outside Latin-1 becomes "?".
+function pdfText(value: string): string {
+  return value
+    .replaceAll("₹", "Rs. ")
+    .replaceAll("…", "...")
+    .replace(/[‘’]/g, "'")
+    .replace(/[“”]/g, '"')
+    .replace(/[–—]/g, "-")
+    .replace(/\s/g, " ")
+    .replace(/[^\x20-\x7e\xa0-\xff]/gu, "?");
 }
 
 // Text that starts with = + - @ tab or CR runs as a formula when the CSV opens in
@@ -117,13 +130,13 @@ function buildSimplePdf(lines: string[]): Uint8Array {
   const escaped = lines.map((line) =>
     line.replaceAll("\\", "\\\\").replaceAll("(", "\\(").replaceAll(")", "\\)"),
   );
-  const content = [`BT /F1 12 Tf 50 780 Td`, ...escaped.map((line, i) => `${i === 0 ? "" : "0 -18 Td "}(${line}) Tj`)].join("\n");
+  const content = [`BT /F1 12 Tf 50 780 Td`, ...escaped.map((line, i) => `${i === 0 ? "" : "0 -16 Td "}(${line}) Tj`), "ET"].join("\n");
   const objects = [
     "1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj",
     "2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj",
     "3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >> endobj",
     `4 0 obj << /Length ${content.length} >> stream\n${content}\nendstream endobj`,
-    "5 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj",
+    "5 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >> endobj",
   ];
   let offset = 9;
   const offsets = [0];
@@ -138,7 +151,8 @@ function buildSimplePdf(lines: string[]): Uint8Array {
     .map((n) => `${String(n).padStart(10, "0")} 00000 n `)
     .join("\n")}\n`;
   const pdf = `%PDF-1.4\n${body}${xref}trailer << /Size 6 /Root 1 0 R >>\nstartxref\n${offset}\n%%EOF`;
-  return new TextEncoder().encode(pdf);
+  // One byte per character, so the xref offsets and stream length above are byte counts.
+  return Uint8Array.from(pdf, (char) => char.charCodeAt(0));
 }
 
 export function downloadBlob(filename: string, data: BlobPart, type: string) {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { transactionsToCsv, transactionsToExcelXml } from "./export";
+import { transactionsToCsv, transactionsToExcelXml, transactionsToPdf } from "./export";
 import { parseExpenseCsv } from "./import-csv";
 import type { Transaction } from "./types";
 
@@ -81,5 +81,25 @@ describe("export", () => {
     expect(out).toContain('<Cell><Data ss:Type="String">Tea &amp; &lt;biscuits&gt;</Data></Cell>');
     expect(out).toContain('<Cell><Data ss:Type="String">Amount</Data></Cell>');
     expect(out).not.toContain("\u0007");
+  });
+
+  it("writes the PDF in WinAnsi text with Rs. instead of the rupee sign", () => {
+    const rows = [
+      { ...sample, name: "Café “special” दूध", amount: 1234.5 },
+      ...Array.from({ length: 41 }, (_, i) => ({ ...sample, id: String(i + 2) })),
+    ];
+    const bytes = transactionsToPdf(rows, "HomeLedger October 2026");
+    const pdf = String.fromCharCode(...bytes);
+    expect(pdf).toContain("/Encoding /WinAnsiEncoding");
+    expect(pdf).toContain("(Total: Rs. 3,448.5) Tj");
+    expect(pdf).toContain(`(2026-09-22  Café "special" ???  Rs. 1,234.5) Tj`);
+    expect(pdf).toContain("(...and 2 more) Tj");
+    expect(pdf).not.toMatch(/[^\x00-\xff]/);
+    // The byte offsets in the xref table still land on each object.
+    const offsets = [...pdf.matchAll(/^(\d{10}) 00000 n $/gm)].map((m) => Number(m[1]));
+    expect(offsets).toHaveLength(5);
+    offsets.forEach((at, i) => expect(pdf.slice(at, at + 8)).toBe(`${i + 1} 0 obj `));
+    const xrefAt = Number(/startxref\n(\d+)/.exec(pdf)?.[1]);
+    expect(pdf.slice(xrefAt, xrefAt + 4)).toBe("xref");
   });
 });
