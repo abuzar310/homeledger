@@ -232,6 +232,7 @@ export default function TransactionDetailPage() {
         title="Delete this expense?"
         body="This cannot be undone."
         confirmLabel="Delete"
+        busyLabel="Deleting…"
         danger
         onClose={() => setConfirm(false)}
         onConfirm={async () => {
