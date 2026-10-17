@@ -1,7 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { Moon, Smartphone, Sun } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useHousehold } from "@/components/HouseholdProvider";
 import { Card, Field, PrimaryButton, ScreenTitle, TextInput } from "@/components/ui";
 import { clearCatalogCache } from "@/lib/household";
@@ -9,7 +11,48 @@ import { clearOfflineQueueFor, flushOfflineQueue, queuedFor } from "@/lib/offlin
 import { saveProfile } from "@/lib/profile";
 import { clearMonthCache } from "@/lib/reports";
 import { createClient } from "@/lib/supabase/client";
+import { readTheme, setTheme, subscribeTheme, type ThemeChoice } from "@/lib/theme";
 import { saveExpense } from "@/lib/transactions";
+
+const THEME_OPTIONS: { value: ThemeChoice; label: string; icon: LucideIcon }[] = [
+  { value: "system", label: "System", icon: Smartphone },
+  { value: "light", label: "Light", icon: Sun },
+  { value: "dark", label: "Dark", icon: Moon },
+];
+
+function AppearanceCard() {
+  // Server render and hydration use "system"; the saved choice shows right after.
+  const theme = useSyncExternalStore(subscribeTheme, () => readTheme(), () => "system" as const);
+  return (
+    <Card>
+      <fieldset>
+        <legend className="section-label">Appearance</legend>
+        <p className="mt-0.5 text-[13px] text-muted">System follows your phone&apos;s light or dark setting. Saved on this phone only.</p>
+        <div className="mt-3 grid grid-cols-3 gap-1 rounded-2xl bg-bg p-1 ring-1 ring-line">
+          {THEME_OPTIONS.map(({ value, label, icon: Icon }) => (
+            <label
+              key={value}
+              className={`press flex min-h-12 cursor-pointer items-center justify-center gap-1.5 rounded-xl text-[15px] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-primary ${
+                theme === value ? "bg-primary font-semibold text-on-primary" : "font-medium text-muted"
+              }`}
+            >
+              <input
+                type="radio"
+                name="theme"
+                value={value}
+                checked={theme === value}
+                onChange={() => setTheme(value)}
+                className="sr-only"
+              />
+              <Icon className="size-4 shrink-0" strokeWidth={1.75} aria-hidden />
+              {label}
+            </label>
+          ))}
+        </div>
+      </fieldset>
+    </Card>
+  );
+}
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -107,6 +150,8 @@ export default function ProfilePage() {
           Save profile
         </PrimaryButton>
       </form>
+
+      <AppearanceCard />
 
       {signOutNote ? <p className="text-[15px] text-danger">{signOutNote}</p> : null}
       <button type="button" className="min-h-12 w-full text-[15px] font-semibold text-danger" onClick={() => void signOut()}>
