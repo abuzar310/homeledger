@@ -23,3 +23,33 @@ describe("parseSmartEntry", () => {
     expect(parseSmartEntry("iPhone 15 1200").amount).toBe(1200);
   });
 });
+
+describe("parseSmartEntry with grouped amounts", () => {
+  it("reads Rent 12,000", () => {
+    expect(parseSmartEntry("Rent 12,000")).toMatchObject({ name: "Rent", amount: 12000 });
+  });
+
+  it("reads Indian grouping", () => {
+    expect(parseSmartEntry("School fees 1,20,000").amount).toBe(120000);
+    expect(parseSmartEntry("Car 12,34,567").amount).toBe(1234567);
+  });
+
+  it("reads international grouping", () => {
+    expect(parseSmartEntry("Laptop 1,200,000").amount).toBe(1200000);
+  });
+
+  it("reads a marked amount with paise", () => {
+    const draft = parseSmartEntry("Dinner ₹1,200.50 UPI");
+    expect(draft.amount).toBe(1200.5);
+    expect(draft.paymentHint).toBe("UPI");
+    expect(draft.name).toBe("Dinner");
+  });
+
+  it("still uses the last number with grouping", () => {
+    expect(parseSmartEntry("iPhone 15 1,20,000").amount).toBe(120000);
+  });
+
+  it("does not join numbers that are only separated by a comma and space", () => {
+    expect(parseSmartEntry("Milk 2, eggs 60").amount).toBe(60);
+  });
+});

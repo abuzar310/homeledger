@@ -16,6 +16,11 @@ const PAYMENTS: { re: RegExp; name: string }[] = [
   { re: /\bbank\s*transfer\b/i, name: "Bank Transfer" },
 ];
 
+// Indian (1,20,000) or international (120,000) grouping, else plain digits; optional paise.
+const NUMBER = String.raw`(?:\d{1,3}(?:,\d{2})+,\d{3}|\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?(?!\d)`;
+const MARKED = new RegExp(String.raw`(?:₹|rs\.?\s+)(${NUMBER})`, "i");
+const NUMBERS = new RegExp(`(${NUMBER})`, "g");
+
 export function parseSmartEntry(raw: string): SmartDraft {
   let text = raw.trim();
   if (!text) return { name: "", amount: null, merchantName: null, paymentHint: null };
@@ -29,8 +34,8 @@ export function parseSmartEntry(raw: string): SmartDraft {
     }
   }
 
-  const marked = text.match(/(?:₹|rs\.?\s+)(\d+(?:\.\d{1,2})?)/i);
-  const numbers = [...text.matchAll(/(\d+(?:\.\d{1,2})?)/g)];
+  const marked = text.match(MARKED);
+  const numbers = [...text.matchAll(NUMBERS)];
   const amountMatch = marked ?? numbers.at(-1);
   const amount = amountMatch ? parseAmount(amountMatch[1]) : null;
   if (amountMatch) text = text.replace(amountMatch[0], " ");
