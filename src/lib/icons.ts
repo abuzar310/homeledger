@@ -46,7 +46,7 @@ const CATEGORY: Record<string, LucideIcon> = {
 
 export function categoryIcon(name?: string | null): LucideIcon {
   if (!name) return ReceiptText;
-  return CATEGORY[name.toLowerCase()] ?? CircleHelp;
+  return CATEGORY[name.toLowerCase()] ?? Tag;
 }
 
 export {

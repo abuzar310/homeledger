@@ -91,8 +91,11 @@ export default function MerchantsPage() {
           title="No merchants yet"
           body="Merchants appear after you add expenses."
           action={
-            <Link href="/add">
-              <PrimaryButton>Add expense</PrimaryButton>
+            <Link
+              href="/add"
+              className="press inline-flex min-h-12 w-full items-center justify-center rounded-2xl bg-primary px-4 text-[16px] font-semibold text-on-primary"
+            >
+              Add expense
             </Link>
           }
         />

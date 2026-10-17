@@ -24,7 +24,7 @@ const SECTIONS: { title: string; items: { href: string; label: string; icon: Luc
   {
     title: "Account",
     items: [
-      { href: "/more/settings", label: "Profile", icon: UserRound },
+      { href: "/more/settings", label: "Profile & appearance", icon: UserRound },
       { href: "/more/notifications", label: "Notifications", icon: Bell },
     ],
   },

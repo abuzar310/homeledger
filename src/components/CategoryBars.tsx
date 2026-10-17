@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { formatINR } from "@/lib/money";
 import { categoryIcon } from "@/lib/icons";
 import type { CategorySpend } from "@/lib/reports";
@@ -40,8 +40,8 @@ export function CategoryBars({
               </div>
               <div className="h-2 overflow-hidden rounded-full bg-line">
                 <div
-                  className="bar-fill h-full rounded-full"
-                  style={{ width: `${width}%`, background: row.category.color || "var(--primary)" }}
+                  className="bar-fill cat-fill h-full rounded-full"
+                  style={{ width: `${width}%`, ...(row.category.color ? { "--cat": row.category.color } : {}) } as CSSProperties}
                 />
               </div>
             </button>

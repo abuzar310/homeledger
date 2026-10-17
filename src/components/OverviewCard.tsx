@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { CountUp } from "./CountUp";
 import { MonthPicker } from "./MonthPicker";
 import { formatINR, monthChangeCopy } from "@/lib/money";
@@ -38,8 +39,8 @@ export function OverviewCard({
               <li key={row.category.id} className="flex items-center justify-between gap-2 text-[12px]">
                 <span className="flex min-w-0 items-center gap-1.5 text-muted">
                   <span
-                    className="size-1.5 shrink-0 rounded-full"
-                    style={{ background: row.category.color || "var(--primary)" }}
+                    className="cat-fill size-1.5 shrink-0 rounded-full"
+                    style={(row.category.color ? { "--cat": row.category.color } : {}) as CSSProperties}
                     aria-hidden
                   />
                   <span className="truncate">{row.category.name}</span>
