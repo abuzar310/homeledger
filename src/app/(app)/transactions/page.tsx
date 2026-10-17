@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { SlidersHorizontal } from "lucide-react";
 import dynamic from "next/dynamic";
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { EmptyState } from "@/components/EmptyState";
 import { useHousehold } from "@/components/HouseholdProvider";
 import { MonthPicker } from "@/components/MonthPicker";
@@ -35,6 +35,8 @@ function TransactionsInner() {
   const [busy, setBusy] = useState(true);
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const loadingMoreRef = useRef(false);
 
   const applied = useMemo<TransactionFilters>(
     () => ({
@@ -171,15 +173,26 @@ function TransactionsInner() {
           {hasMore ? (
             <button
               className="min-h-12 w-full text-[15px] font-semibold text-primary"
+              disabled={loadingMore}
               onClick={async () => {
-                if (!household) return;
-                const next = await listTransactions(createClient(), household.id, applied, page + 1, 30);
-                setRows((prev) => [...prev, ...next]);
-                setPage((p) => p + 1);
-                setHasMore(next.length === 30);
+                // A ref, not state, so a fast double tap cannot append the same page twice.
+                if (!household || loadingMoreRef.current) return;
+                loadingMoreRef.current = true;
+                setLoadingMore(true);
+                try {
+                  const next = await listTransactions(createClient(), household.id, applied, page + 1, 30);
+                  setRows((prev) => [...prev, ...next]);
+                  setPage((p) => p + 1);
+                  setHasMore(next.length === 30);
+                } catch {
+                  /* keep the button so they can tap again */
+                } finally {
+                  loadingMoreRef.current = false;
+                  setLoadingMore(false);
+                }
               }}
             >
-              Load more
+              {loadingMore ? "Loading…" : "Load more"}
             </button>
           ) : null}
         </div>

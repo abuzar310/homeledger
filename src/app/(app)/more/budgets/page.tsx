@@ -21,6 +21,8 @@ export default function BudgetsPage() {
   const [categoryId, setCategoryId] = useState("");
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   async function load() {
     if (!household) return;
@@ -111,17 +113,35 @@ export default function BudgetsPage() {
         <Field label="Monthly amount">
           <TextInput inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="10000" />
         </Field>
+        {saveError ? (
+          <p className="text-[15px] text-danger" role="alert">
+            {saveError}
+          </p>
+        ) : null}
         <PrimaryButton
+          disabled={saving}
           onClick={async () => {
-            if (!household) return;
+            if (!household || saving) return;
             const parsed = parseAmount(amount);
-            if (parsed == null) return;
-            await upsertMonthBudget(createClient(), household.id, month, parsed, categoryId || null, budgets);
-            setAmount("");
+            if (parsed == null || parsed <= 0) {
+              setSaveError("Enter a valid amount");
+              return;
+            }
+            setSaving(true);
+            setSaveError(null);
+            try {
+              await upsertMonthBudget(createClient(), household.id, month, parsed, categoryId || null, budgets);
+              setAmount("");
+            } catch {
+              setSaveError("Could not save the budget. Try again.");
+              return;
+            } finally {
+              setSaving(false);
+            }
             await load();
           }}
         >
-          Save budget
+          {saving ? "Saving…" : "Save budget"}
         </PrimaryButton>
       </Card>
     </div>
