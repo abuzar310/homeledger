@@ -13,7 +13,7 @@ import { QuickAddGrid } from "@/components/QuickAddGrid";
 import { TransactionRow } from "@/components/TransactionRow";
 import { WeekChart } from "@/components/WeekChart";
 import { Card, PrimaryButton, SectionLabel } from "@/components/ui";
-import { listMonthBudgets } from "@/lib/budgets";
+import { listEffectiveBudgets } from "@/lib/budgets";
 import { monthKey, shiftISO, startOfWeek, todayISO } from "@/lib/dates";
 import { formatINR } from "@/lib/money";
 import { useSessionOnce } from "@/lib/motion";
@@ -71,7 +71,7 @@ function HomeInner() {
     try {
       const [txs, nextBudgets, recurring, prevTotal, weekTxs] = await Promise.all([
         fetchMonthTransactions(supabase, household.id, month),
-        listMonthBudgets(supabase, household.id, month),
+        listEffectiveBudgets(supabase, household.id, month),
         listRecurring(supabase, household.id),
         previousMonthTotal(supabase, household.id, month),
         fetchRangeTransactions(supabase, household.id, monday, sunday),

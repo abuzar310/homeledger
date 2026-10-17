@@ -38,9 +38,12 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
       return;
     }
     const supabase = createClient();
+    // The proxy already verified the user for this page and RLS guards every query, so the
+    // stored session is enough here; getUser() would add a blocking auth round trip on every open.
     const {
-      data: { user: current },
-    } = await supabase.auth.getUser();
+      data: { session },
+    } = await supabase.auth.getSession();
+    const current = session?.user ?? null;
     if (!current) {
       setUser(null);
       setProfile(null);

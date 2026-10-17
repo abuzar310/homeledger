@@ -5,6 +5,7 @@ import {
   daysSoFar,
   monthTotals,
   monthsBack,
+  spendByMember,
   spendByPaymentMethod,
   spendThisWeek,
 } from "./reports";
@@ -89,6 +90,25 @@ describe("chart helpers", () => {
     expect(spendByPaymentMethod(rows)).toEqual([
       { id: "upi", name: "UPI", total: 400, percent: 80 },
       { id: "none", name: "Not set", total: 100, percent: 20 },
+    ]);
+  });
+});
+
+describe("spendByMember", () => {
+  it("labels each member and falls back for unknown ones", () => {
+    const names = new Map([
+      ["m1", "Ayesha"],
+      ["m2", "Abuzar"],
+    ]);
+    const rows = [
+      { ...tx("a", 300, "2026-10-01"), member_id: "m1" },
+      { ...tx("b", 100, "2026-10-02"), member_id: "m2" },
+      { ...tx("c", 100, "2026-10-02"), member_id: "gone" },
+    ];
+    expect(spendByMember(rows, names)).toEqual([
+      { id: "m1", name: "Ayesha", total: 300, percent: 60 },
+      { id: "m2", name: "Abuzar", total: 100, percent: 20 },
+      { id: "gone", name: "Someone", total: 100, percent: 20 },
     ]);
   });
 });

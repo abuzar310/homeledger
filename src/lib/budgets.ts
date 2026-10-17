@@ -2,7 +2,23 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { daysInMonth, monthStart } from "@/lib/dates";
 import type { Budget } from "@/lib/types";
 
-export async function listMonthBudgets(
+/**
+ * The budget in force for each slot (whole household, or one category): the latest one set
+ * on or before `month`, so a budget carries over until it is changed. A 0 amount ends a slot.
+ */
+export function effectiveBudgets(rows: Budget[], month: string): Budget[] {
+  const start = monthStart(month);
+  const bySlot = new Map<string, Budget>();
+  for (const row of [...rows].sort((a, b) => b.year_month.localeCompare(a.year_month))) {
+    if (row.year_month > start) continue;
+    const slot = row.category_id ?? "";
+    if (!bySlot.has(slot)) bySlot.set(slot, row);
+  }
+  return [...bySlot.values()].filter((row) => row.amount > 0);
+}
+
+/** Every budget row set on or before `month`, newest first. */
+export async function listBudgetHistory(
   supabase: SupabaseClient,
   householdId: string,
   month: string,
@@ -11,9 +27,20 @@ export async function listMonthBudgets(
     .from("budgets")
     .select("id, household_id, category_id, year_month, amount")
     .eq("household_id", householdId)
-    .eq("year_month", monthStart(month));
+    .lte("year_month", monthStart(month))
+    .order("year_month", { ascending: false })
+    .limit(1000);
   if (error) throw error;
   return ((data ?? []) as Budget[]).map((row) => ({ ...row, amount: Number(row.amount) }));
+}
+
+/** Budgets that apply to `month`, including ones carried over from earlier months. */
+export async function listEffectiveBudgets(
+  supabase: SupabaseClient,
+  householdId: string,
+  month: string,
+): Promise<Budget[]> {
+  return effectiveBudgets(await listBudgetHistory(supabase, householdId, month), month);
 }
 
 export async function upsertMonthBudget(

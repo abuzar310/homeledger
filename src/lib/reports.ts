@@ -127,11 +127,10 @@ export function daysSoFar(month: string, today = todayISO()): number {
 
 export type ShareRow = { id: string; name: string; total: number; percent: number };
 
-export function spendByPaymentMethod(transactions: Transaction[]): ShareRow[] {
+function shares(transactions: Transaction[], key: (tx: Transaction) => { id: string; name: string }): ShareRow[] {
   const map = new Map<string, ShareRow>();
   for (const tx of transactions) {
-    const id = tx.payment_method?.id ?? "none";
-    const name = tx.payment_method?.name ?? "Not set";
+    const { id, name } = key(tx);
     const row = map.get(id) ?? { id, name, total: 0, percent: 0 };
     row.total += tx.amount;
     map.set(id, row);
@@ -140,6 +139,21 @@ export function spendByPaymentMethod(transactions: Transaction[]): ShareRow[] {
   return [...map.values()]
     .map((row) => ({ ...row, percent: Math.round((row.total / total) * 100) }))
     .sort((a, b) => b.total - a.total);
+}
+
+/** Spend per household member who added it; `names` maps household_members.id to a display name. */
+export function spendByMember(transactions: Transaction[], names: Map<string, string>): ShareRow[] {
+  return shares(transactions, (tx) => ({
+    id: tx.member_id ?? "none",
+    name: (tx.member_id && names.get(tx.member_id)) || "Someone",
+  }));
+}
+
+export function spendByPaymentMethod(transactions: Transaction[]): ShareRow[] {
+  return shares(transactions, (tx) => ({
+    id: tx.payment_method?.id ?? "none",
+    name: tx.payment_method?.name ?? "Not set",
+  }));
 }
 
 export async function fetchMonthTransactions(
@@ -156,7 +170,7 @@ export async function fetchMonthTransactions(
     let query = supabase
       .from("transactions")
       .select(
-        "id, household_id, name, amount, occurred_on, category_id, subcategory_id, merchant_id, payment_method_id, notes, needs_review, category:categories(id, name, color, group_name), subcategory:subcategories(id, name), merchant:merchants(id, name), payment_method:payment_methods(id, name)",
+        "id, household_id, member_id, name, amount, occurred_on, category_id, subcategory_id, merchant_id, payment_method_id, notes, needs_review, category:categories(id, name, color, group_name), subcategory:subcategories(id, name), merchant:merchants(id, name), payment_method:payment_methods(id, name)",
       )
       .eq("household_id", householdId)
       .gte("occurred_on", monthStart(month))

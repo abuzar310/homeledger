@@ -12,6 +12,7 @@ import { PullRefresh } from "@/components/PullRefresh";
 import { TransactionRow } from "@/components/TransactionRow";
 import { PrimaryButton, ScreenTitle, TextInput } from "@/components/ui";
 import { formatDayHeading, monthEnd, monthKey, monthStart } from "@/lib/dates";
+import { formatINR } from "@/lib/money";
 import { createClient } from "@/lib/supabase/client";
 import { listTransactions, type TransactionFilters } from "@/lib/transactions";
 import type { Transaction } from "@/lib/types";
@@ -152,11 +153,20 @@ function TransactionsInner() {
         />
       ) : (
         <div className="space-y-5">
-          {groups.map((group) => (
+          {groups.map((group, index) => (
             <section key={group.date}>
-              <div className="mb-2">
-                <h2 className="section-label">{group.title}</h2>
-                {group.subtitle ? <p className="text-[13px] text-muted">{group.subtitle}</p> : null}
+              <div className="mb-2 flex items-end justify-between gap-3">
+                <div>
+                  <h2 className="section-label">{group.title}</h2>
+                  {group.subtitle ? <p className="text-[13px] text-muted">{group.subtitle}</p> : null}
+                </div>
+                {/* The last day on a page may continue on the next one, so its total waits for Load more. */}
+                {hasMore && index === groups.length - 1 ? null : (
+                  <p className="text-[13px] text-muted">
+                    <span className="sr-only">Day total </span>
+                    <span className="tabular-nums text-ink">{formatINR(group.total)}</span>
+                  </p>
+                )}
               </div>
               <div className="rounded-[1.25rem] border border-line bg-surface px-4">
                 {group.items.map((tx) => (
@@ -219,7 +229,12 @@ function groupByDate(rows: Transaction[]) {
     list.push(row);
     map.set(row.occurred_on, list);
   }
-  return [...map.entries()].map(([date, items]) => ({ date, items, ...formatDayHeading(date) }));
+  return [...map.entries()].map(([date, items]) => ({
+    date,
+    items,
+    total: items.reduce((acc, tx) => acc + tx.amount, 0),
+    ...formatDayHeading(date),
+  }));
 }
 
 export default function TransactionsPage() {

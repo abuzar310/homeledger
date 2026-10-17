@@ -13,6 +13,21 @@ export async function ensureHousehold(supabase: SupabaseClient): Promise<Househo
   return household as Household;
 }
 
+/** household_members.id -> the name to show: profile name, then the name saved on joining. */
+export async function listMemberNames(supabase: SupabaseClient, householdId: string): Promise<Map<string, string>> {
+  const { data, error } = await supabase
+    .from("household_members")
+    .select("id, user_id, display_name")
+    .eq("household_id", householdId);
+  if (error) throw error;
+  const rows = (data ?? []) as { id: string; user_id: string; display_name: string | null }[];
+  const { data: profiles } = rows.length
+    ? await supabase.from("profiles").select("id, full_name").in("id", rows.map((row) => row.user_id))
+    : { data: [] };
+  const fullNames = new Map(((profiles ?? []) as { id: string; full_name: string | null }[]).map((p) => [p.id, p.full_name]));
+  return new Map(rows.map((row) => [row.id, fullNames.get(row.user_id) || row.display_name || "Member"]));
+}
+
 const CATALOG_CACHE = "hl-catalogs";
 const CATALOG_MS = 5 * 60 * 1000;
 

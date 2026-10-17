@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { describe, expect, it } from "vitest";
-import { budgetPace, budgetProgress, upsertMonthBudget } from "./budgets";
+import { budgetPace, budgetProgress, effectiveBudgets, upsertMonthBudget } from "./budgets";
 import type { Budget } from "./types";
 
 describe("budgetProgress", () => {
@@ -75,5 +75,34 @@ describe("budgetPace", () => {
   it("has no pace for a month that is not in progress", () => {
     expect(budgetPace(5000, 20000, "2026-09", "2026-10-15")).toBeNull();
     expect(budgetPace(5000, 0, "2026-10", "2026-10-15")).toBeNull();
+  });
+});
+
+describe("effectiveBudgets", () => {
+  const b = (id: string, category_id: string | null, year_month: string, amount: number): Budget => ({
+    id,
+    household_id: "h1",
+    category_id,
+    year_month,
+    amount,
+  });
+
+  it("carries the latest budget per slot into later months", () => {
+    const rows = [
+      b("aug-all", null, "2026-08-01", 18000),
+      b("sep-all", null, "2026-09-01", 20000),
+      b("aug-food", "food", "2026-08-01", 6000),
+    ];
+    expect(effectiveBudgets(rows, "2026-10").map((r) => r.id).sort()).toEqual(["aug-food", "sep-all"]);
+  });
+
+  it("ignores budgets set for later months", () => {
+    expect(effectiveBudgets([b("nov-all", null, "2026-11-01", 25000)], "2026-10")).toEqual([]);
+  });
+
+  it("lets a 0 budget end the carry-over", () => {
+    const rows = [b("sep-food", "food", "2026-09-01", 6000), b("oct-food", "food", "2026-10-01", 0)];
+    expect(effectiveBudgets(rows, "2026-10")).toEqual([]);
+    expect(effectiveBudgets(rows, "2026-09").map((r) => r.id)).toEqual(["sep-food"]);
   });
 });

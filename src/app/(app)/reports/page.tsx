@@ -16,7 +16,8 @@ import { ShareBars } from "@/components/ShareBars";
 import { SpendPaceChart } from "@/components/SpendPaceChart";
 import { Card, PrimaryButton, ScreenTitle } from "@/components/ui";
 import { formatINR } from "@/lib/money";
-import { listMonthBudgets } from "@/lib/budgets";
+import { listEffectiveBudgets } from "@/lib/budgets";
+import { listMemberNames } from "@/lib/household";
 import { daysInMonth, formatMonthLabel, monthEnd, monthKey, monthStart, previousMonth, todayISO } from "@/lib/dates";
 import {
   cumulativeDaily,
@@ -27,6 +28,7 @@ import {
   monthTotals,
   monthsBack,
   spendByCategory,
+  spendByMember,
   spendByMerchant,
   spendByPaymentMethod,
   sum,
@@ -46,6 +48,7 @@ function ReportsInner() {
   const [rows, setRows] = useState<Transaction[]>([]);
   const [history, setHistory] = useState<Map<string, number>>(new Map());
   const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [members, setMembers] = useState<Map<string, string>>(new Map());
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState(false);
 
@@ -57,14 +60,17 @@ function ReportsInner() {
     try {
       // Earlier months come from one light query (date + amount); the selected month keeps its full rows.
       const first = monthsBack(month, TREND_MONTHS)[0];
-      const [txs, days, nextBudgets] = await Promise.all([
+      const [txs, days, nextBudgets, names] = await Promise.all([
         fetchMonthTransactions(supabase, household.id, month),
         fetchDailyTotals(supabase, household.id, monthStart(first), monthEnd(previousMonth(month))),
-        listMonthBudgets(supabase, household.id, month),
+        listEffectiveBudgets(supabase, household.id, month),
+        // Names only label the "Who spent" card; a failure here must not hide the report.
+        listMemberNames(supabase, household.id).catch(() => new Map<string, string>()),
       ]);
       setRows(txs);
       setHistory(days);
       setBudgets(nextBudgets);
+      setMembers(names);
     } catch {
       setError(true);
     } finally {
@@ -81,6 +87,7 @@ function ReportsInner() {
   const categories = spendByCategory(rows, catalogs.categories);
   const merchants = spendByMerchant(rows).slice(0, 5);
   const paidWith = spendByPaymentMethod(rows);
+  const bySpender = members.size > 1 ? spendByMember(rows, members) : [];
   const largest = [...rows].sort((a, b) => b.amount - a.amount).slice(0, 5);
   const householdBudget = budgets.find((b) => !b.category_id);
   const topCategory = categories[0];
@@ -212,6 +219,13 @@ function ReportsInner() {
             <h2 className="mb-3 text-[16px] font-semibold">Category breakdown</h2>
             <CategoryBars rows={categories} onSelect={(id) => router.push(`/reports/category/${id}?month=${month}`)} />
           </Card>
+
+          {bySpender.length ? (
+            <Card>
+              <h2 className="mb-3 text-[16px] font-semibold">Who spent</h2>
+              <ShareBars rows={bySpender} />
+            </Card>
+          ) : null}
 
           {paidWith.some((row) => row.id !== "none") ? (
             <Card>

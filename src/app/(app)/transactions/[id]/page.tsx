@@ -11,13 +11,42 @@ import { createClient } from "@/lib/supabase/client";
 import { deleteExpense, getTransaction, replaceItems, updateExpense, upsertMerchant } from "@/lib/transactions";
 import { CHANNELS, CHANNEL_LABELS, type PurchaseChannel, type Transaction } from "@/lib/types";
 
+type Draft = {
+  name: string;
+  amount: string;
+  date: string;
+  categoryId: string;
+  subcategoryId: string;
+  merchant: string;
+  paymentMethodId: string;
+  channel: string;
+  notes: string;
+};
+
+function toDraft(tx: Transaction): Draft {
+  return {
+    name: tx.name,
+    amount: String(tx.amount),
+    date: tx.occurred_on,
+    categoryId: tx.category_id ?? "",
+    subcategoryId: tx.subcategory_id ?? "",
+    merchant: tx.merchant?.name ?? "",
+    paymentMethodId: tx.payment_method_id ?? "",
+    channel: tx.purchase_channel ?? "",
+    notes: tx.notes ?? "",
+  };
+}
+
 export default function TransactionDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { household, catalogs } = useHousehold();
   const [tx, setTx] = useState<Transaction | null>(null);
   const [missing, setMissing] = useState(false);
-  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<Draft | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const editing = draft != null;
   const [confirm, setConfirm] = useState(false);
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
 
@@ -65,9 +94,41 @@ export default function TransactionDetailPage() {
   const items = tx.items ?? [];
   const itemTotal = items.reduce((s, i) => s + i.amount, 0);
 
-  async function savePatch(patch: Parameters<typeof updateExpense>[2]) {
-    const saved = await updateExpense(createClient(), tx!.id, patch);
-    setTx(saved);
+  function edit(patch: Partial<Draft>) {
+    setDraft((cur) => (cur ? { ...cur, ...patch } : cur));
+  }
+
+  async function saveDraft() {
+    if (!draft || !household || !tx || saving) return;
+    const amount = parseAmount(draft.amount);
+    if (!draft.name.trim()) return setSaveError("Enter what this expense was for.");
+    if (amount == null || amount <= 0) return setSaveError("Enter a valid amount.");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(draft.date)) return setSaveError("Pick a date.");
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const supabase = createClient();
+      // Send only what changed, so an untouched category keeps its "Needs review" state.
+      const patch: Parameters<typeof updateExpense>[2] = {};
+      if (draft.name.trim() !== tx.name) patch.name = draft.name.trim();
+      if (amount !== tx.amount) patch.amount = amount;
+      if (draft.date !== tx.occurred_on) patch.occurred_on = draft.date;
+      if ((draft.categoryId || null) !== tx.category_id) patch.category_id = draft.categoryId || null;
+      if ((draft.subcategoryId || null) !== tx.subcategory_id) patch.subcategory_id = draft.subcategoryId || null;
+      if ((draft.paymentMethodId || null) !== tx.payment_method_id) patch.payment_method_id = draft.paymentMethodId || null;
+      if ((draft.channel || null) !== tx.purchase_channel) patch.purchase_channel = (draft.channel || null) as PurchaseChannel | null;
+      if ((draft.notes.trim() || null) !== (tx.notes || null)) patch.notes = draft.notes.trim() || null;
+      const merchant = draft.merchant.trim();
+      if (merchant !== (tx.merchant?.name ?? "")) {
+        patch.merchant_id = merchant ? await upsertMerchant(supabase, household.id, merchant) : null;
+      }
+      if (Object.keys(patch).length) setTx(await updateExpense(supabase, tx.id, patch));
+      setDraft(null);
+    } catch {
+      setSaveError("Could not save your changes. Check your connection and try again.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   const when = `${formatRelativeDay(tx.occurred_on)}${tx.created_at ? ` · ${formatTimeIST(tx.created_at)}` : ""}`;
@@ -95,23 +156,21 @@ export default function TransactionDetailPage() {
       ) : (
         <Card className="space-y-3">
           <Field label="Name">
-            <TextInput defaultValue={tx.name} onBlur={(e) => void savePatch({ name: e.target.value })} />
+            <TextInput value={draft.name} onChange={(e) => edit({ name: e.target.value })} />
           </Field>
-          <Field label="Amount">
-            <TextInput
-              defaultValue={String(tx.amount)}
-              inputMode="decimal"
-              onBlur={(e) => {
-                const n = parseAmount(e.target.value);
-                if (n != null) void savePatch({ amount: n });
-              }}
-            />
-          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Amount">
+              <TextInput value={draft.amount} inputMode="decimal" onChange={(e) => edit({ amount: e.target.value })} />
+            </Field>
+            <Field label="Date">
+              <TextInput type="date" value={draft.date} onChange={(e) => edit({ date: e.target.value })} />
+            </Field>
+          </div>
           <Field label="Category">
             <select
               className="min-h-12 w-full rounded-xl border border-line bg-surface px-3.5"
-              value={tx.category_id ?? ""}
-              onChange={(e) => void savePatch({ category_id: e.target.value || null, subcategory_id: null })}
+              value={draft.categoryId}
+              onChange={(e) => edit({ categoryId: e.target.value, subcategoryId: "" })}
             >
               <option value="">Uncategorised</option>
               {catalogs.categories.map((c) => (
@@ -124,37 +183,27 @@ export default function TransactionDetailPage() {
           <Field label="Subcategory">
             <select
               className="min-h-12 w-full rounded-xl border border-line bg-surface px-3.5"
-              value={tx.subcategory_id ?? ""}
-              onChange={(e) => void savePatch({ subcategory_id: e.target.value || null })}
+              value={draft.subcategoryId}
+              onChange={(e) => edit({ subcategoryId: e.target.value })}
             >
               <option value="">None</option>
               {catalogs.subcategories
-                .filter((s) => !tx.category_id || s.category_id === tx.category_id)
-                .map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
+                .filter((sub) => !draft.categoryId || sub.category_id === draft.categoryId)
+                .map((sub) => (
+                  <option key={sub.id} value={sub.id}>
+                    {sub.name}
                   </option>
                 ))}
             </select>
           </Field>
           <Field label="Merchant / store">
-            <TextInput
-              defaultValue={tx.merchant?.name ?? ""}
-              onBlur={async (e) => {
-                if (!household || !e.target.value.trim()) {
-                  void savePatch({ merchant_id: null });
-                  return;
-                }
-                const merchantId = await upsertMerchant(createClient(), household.id, e.target.value);
-                void savePatch({ merchant_id: merchantId });
-              }}
-            />
+            <TextInput value={draft.merchant} onChange={(e) => edit({ merchant: e.target.value })} />
           </Field>
           <Field label="Payment method">
             <select
               className="min-h-12 w-full rounded-xl border border-line bg-surface px-3.5"
-              value={tx.payment_method_id ?? ""}
-              onChange={(e) => void savePatch({ payment_method_id: e.target.value || null })}
+              value={draft.paymentMethodId}
+              onChange={(e) => edit({ paymentMethodId: e.target.value })}
             >
               <option value="">None</option>
               {catalogs.paymentMethods.map((p) => (
@@ -167,8 +216,8 @@ export default function TransactionDetailPage() {
           <Field label="Purchase channel">
             <select
               className="min-h-12 w-full rounded-xl border border-line bg-surface px-3.5"
-              value={tx.purchase_channel ?? ""}
-              onChange={(e) => void savePatch({ purchase_channel: (e.target.value || null) as PurchaseChannel | null })}
+              value={draft.channel}
+              onChange={(e) => edit({ channel: e.target.value })}
             >
               <option value="">None</option>
               {CHANNELS.map((c) => (
@@ -179,8 +228,13 @@ export default function TransactionDetailPage() {
             </select>
           </Field>
           <Field label="Notes">
-            <TextArea defaultValue={tx.notes ?? ""} onBlur={(e) => void savePatch({ notes: e.target.value || null })} />
+            <TextArea value={draft.notes} onChange={(e) => edit({ notes: e.target.value })} />
           </Field>
+          {saveError ? (
+            <p className="text-[15px] text-danger" role="alert">
+              {saveError}
+            </p>
+          ) : null}
         </Card>
       )}
 
@@ -223,7 +277,24 @@ export default function TransactionDetailPage() {
         </Card>
       ) : null}
 
-      <PrimaryButton onClick={() => setEditing((open) => !open)}>{editing ? "Done" : "Edit expense"}</PrimaryButton>
+      {editing ? (
+        <div className="grid grid-cols-2 gap-3">
+          <SecondaryButton
+            disabled={saving}
+            onClick={() => {
+              setDraft(null);
+              setSaveError(null);
+            }}
+          >
+            Cancel
+          </SecondaryButton>
+          <PrimaryButton disabled={saving} onClick={() => void saveDraft()}>
+            {saving ? "Saving…" : "Save changes"}
+          </PrimaryButton>
+        </div>
+      ) : (
+        <PrimaryButton onClick={() => setDraft(toDraft(tx))}>Edit expense</PrimaryButton>
+      )}
       <SecondaryButton className="w-full text-danger" onClick={() => setConfirm(true)}>
         Delete expense
       </SecondaryButton>
