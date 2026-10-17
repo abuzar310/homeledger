@@ -23,12 +23,14 @@ export function OverviewCard({
         <h2 className="section-label">Overview</h2>
         <MonthPicker value={month} onChange={onMonth} className="text-[15px] font-medium" />
       </div>
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
+      {/* A total too wide to sit beside the category list moves the list onto its own line. */}
+      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
+        <div className="min-w-0 grow">
           <p className="hero-amount">
             <CountUp value={total} />
           </p>
-          <p className="mt-2 text-[13px] text-muted">{copy ?? "Spent this month"}</p>
+          {/* w-0 min-w-full: the line wraps to the total's width and never forces the list down itself. */}
+          <p className="mt-2 w-0 min-w-full text-[13px] text-muted">{copy ?? "Spent this month"}</p>
         </div>
         {categories.length ? (
           <ul className="min-w-[9.5rem] space-y-1.5">
