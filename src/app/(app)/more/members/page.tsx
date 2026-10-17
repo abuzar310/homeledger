@@ -172,7 +172,7 @@ export default function MembersPage() {
       <ConfirmDialog
         open={confirmOpen}
         title="Join this household?"
-        body={`HomeLedger will switch to the household with code ${join.trim()} and show its expenses instead of this one's. Your current expenses stay saved, but they won't show here after you switch.`}
+        body={`HomeLedger will switch to the household with code ${join.trim()} and show its expenses instead of this one's. Your current expenses stay saved, but they won't show here after you switch. If this home has no expenses yet, it is removed, along with its budgets and bills.`}
         confirmLabel={joining ? "Joining…" : "Join household"}
         onConfirm={confirmJoin}
         onClose={() => {

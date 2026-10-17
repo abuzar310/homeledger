@@ -37,6 +37,21 @@ const monthMemo = new Map<string, { at: number; rows: Transaction[] }>();
 const prevMemo = new Map<string, { at: number; total: number }>();
 const dailyMemo = new Map<string, { at: number; days: Map<string, number> }>();
 
+const PAGE = 1000;
+
+/** Runs a range query page by page: the API returns at most 1,000 rows per request. */
+async function allPages(
+  page: (from: number, to: number) => PromiseLike<{ data: unknown[] | null; error: unknown }>,
+): Promise<unknown[]> {
+  const out: unknown[] = [];
+  for (let start = 0; ; start += PAGE) {
+    const { data, error } = await page(start, start + PAGE - 1);
+    if (error) throw error;
+    out.push(...(data ?? []));
+    if (!data || data.length < PAGE) return out;
+  }
+}
+
 export function clearMonthCache() {
   monthMemo.clear();
   prevMemo.clear();
@@ -53,23 +68,18 @@ export async function fetchDailyTotals(
   const key = `${householdId}:${from}:${to}`;
   const hit = dailyMemo.get(key);
   if (hit && Date.now() - hit.at < MONTH_MS) return hit.days;
-  const PAGE = 1000;
-  const days = new Map<string, number>();
-  for (let start = 0; ; start += PAGE) {
-    const { data, error } = await supabase
+  const rows = (await allPages((start, end) =>
+    supabase
       .from("transactions")
       .select("amount, occurred_on")
       .eq("household_id", householdId)
       .gte("occurred_on", from)
       .lte("occurred_on", to)
       .order("id")
-      .range(start, start + PAGE - 1);
-    if (error) throw error;
-    for (const row of data ?? []) {
-      days.set(row.occurred_on, (days.get(row.occurred_on) ?? 0) + Number(row.amount));
-    }
-    if (!data || data.length < PAGE) break;
-  }
+      .range(start, end),
+  )) as { amount: unknown; occurred_on: string }[];
+  const days = new Map<string, number>();
+  for (const row of rows) days.set(row.occurred_on, (days.get(row.occurred_on) ?? 0) + Number(row.amount));
   dailyMemo.set(key, { at: Date.now(), days });
   return days;
 }
@@ -142,21 +152,23 @@ export async function fetchMonthTransactions(
   const hit = monthMemo.get(key);
   if (hit && Date.now() - hit.at < MONTH_MS) return hit.rows;
 
-  let query = supabase
-    .from("transactions")
-    .select(
-      "id, household_id, name, amount, occurred_on, category_id, subcategory_id, merchant_id, payment_method_id, notes, needs_review, category:categories(id, name, color, group_name), subcategory:subcategories(id, name), merchant:merchants(id, name), payment_method:payment_methods(id, name)",
-    )
-    .eq("household_id", householdId)
-    .gte("occurred_on", monthStart(month))
-    .lte("occurred_on", monthEnd(month));
-  if (categoryId) query = query.eq("category_id", categoryId);
-  const { data, error } = await query
-    .order("occurred_on", { ascending: false })
-    .order("created_at", { ascending: false })
-    .limit(2000);
-  if (error) throw error;
-  const rows = (data ?? []).map((tx) => ({ ...tx, amount: Number(tx.amount) })) as unknown as Transaction[];
+  const data = await allPages((from, to) => {
+    let query = supabase
+      .from("transactions")
+      .select(
+        "id, household_id, name, amount, occurred_on, category_id, subcategory_id, merchant_id, payment_method_id, notes, needs_review, category:categories(id, name, color, group_name), subcategory:subcategories(id, name), merchant:merchants(id, name), payment_method:payment_methods(id, name)",
+      )
+      .eq("household_id", householdId)
+      .gte("occurred_on", monthStart(month))
+      .lte("occurred_on", monthEnd(month));
+    if (categoryId) query = query.eq("category_id", categoryId);
+    return query
+      .order("occurred_on", { ascending: false })
+      .order("created_at", { ascending: false })
+      .order("id")
+      .range(from, to);
+  });
+  const rows = (data as { amount: unknown }[]).map((tx) => ({ ...tx, amount: Number(tx.amount) })) as unknown as Transaction[];
   monthMemo.set(key, { at: Date.now(), rows });
   return rows;
 }

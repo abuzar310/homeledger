@@ -12,6 +12,16 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((windows) => {
+      const open = windows.find((client) => "focus" in client);
+      return open ? open.focus() : self.clients.openWindow("/home");
+    }),
+  );
+});
+
 // ponytail: installability only — never cache API, auth, or HTML
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);

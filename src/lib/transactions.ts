@@ -66,6 +66,7 @@ export async function listTransactions(
     .eq("household_id", householdId)
     .order("occurred_on", { ascending: false })
     .order("created_at", { ascending: false })
+    .order("id")
     .range(page * pageSize, page * pageSize + pageSize - 1);
 
   if (filters.from) query = query.gte("occurred_on", filters.from);
