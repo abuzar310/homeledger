@@ -68,16 +68,18 @@ function HomeInner() {
     setError(false);
     const monday = startOfWeek(today);
     const sunday = shiftISO(monday, 6);
+    // When Monday..Sunday all fall in this month, its rows already hold the week.
+    const weekInMonth = monday.slice(0, 7) === month && sunday.slice(0, 7) === month;
     try {
       const [txs, nextBudgets, recurring, prevTotal, weekTxs] = await Promise.all([
         fetchMonthTransactions(supabase, household.id, month),
         listEffectiveBudgets(supabase, household.id, month),
         listRecurring(supabase, household.id),
         previousMonthTotal(supabase, household.id, month),
-        fetchRangeTransactions(supabase, household.id, monday, sunday),
+        weekInMonth ? null : fetchRangeTransactions(supabase, household.id, monday, sunday),
       ]);
       setRows(txs);
-      setWeekRows(weekTxs);
+      setWeekRows(weekTxs ?? txs.filter((tx) => tx.occurred_on >= monday && tx.occurred_on <= sunday));
       setLastMonthTotal(prevTotal);
       setBudgets(nextBudgets);
       const dueNow = recurring.filter((row) => row.next_on <= today);
