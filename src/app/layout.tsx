@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { PwaRegister } from "@/components/PwaRegister";
+import { THEME_COLOR, themeScript } from "@/lib/theme";
 import "./globals.css";
 
 const sans = Plus_Jakarta_Sans({
@@ -33,12 +34,21 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#b54a2a",
+  // A Light / Dark choice saved in Settings adds its own theme-color meta ahead of these.
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: THEME_COLOR.light },
+    { media: "(prefers-color-scheme: dark)", color: THEME_COLOR.dark },
+  ],
+  colorScheme: "light dark",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en-IN" className={`${sans.variable} h-full antialiased`}>
+    // The head script sets data-theme before React hydrates; let the DOM win.
+    <html lang="en-IN" className={`${sans.variable} h-full antialiased`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body className="min-h-full bg-bg font-sans text-ink">
         {children}
         <PwaRegister />

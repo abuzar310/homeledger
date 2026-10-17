@@ -1,7 +1,20 @@
 @import "tailwindcss";
 
+/* Tailwind's own dark: is media-only; this one also obeys the Light / Dark choice in Settings. */
+@custom-variant dark {
+  &:where([data-theme="dark"], [data-theme="dark"] *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not([data-theme="light"]), :root:not([data-theme="light"]) *) {
+      @slot;
+    }
+  }
+}
+
 :root {
   /* Kitchen ledger: warmth lives in the pen, not the paper. */
+  color-scheme: light;
   --bg: oklch(0.985 0.008 70);
   --surface: oklch(0.998 0.003 70);
   --ink: oklch(0.22 0.025 36);
@@ -16,7 +29,11 @@
   --warn: oklch(0.55 0.14 55);
   --danger: oklch(0.5 0.18 25);
   /* Chart marks that are not the one in focus: a neutral step that still clears 3:1 on --surface. */
-  --chart-rest: color-mix(in oklab, var(--muted) 58%, var(--surface));
+  --chart-rest: color-mix(in oklab, var(--muted) 62%, var(--surface));
+  /* Category colours come from the database; dark mode lifts them toward --ink (see .cat-fill). */
+  --cat-mix: 100%;
+  --scrim: rgb(0 0 0 / 0.48);
+  --fab-glow: color-mix(in oklab, var(--primary) 28%, transparent);
   --nav-h: 72px;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
@@ -29,6 +46,55 @@
   --dur-sheet: 300ms;
   --z-nav: 40;
   --z-sheet: 50;
+}
+
+/*
+ * Dark: the same ledger after sunset. Warm near-black paper, a lighter terracotta pen,
+ * dark text on the pen. No data-theme follows the phone; data-theme="light|dark" is the
+ * choice saved in Settings (src/lib/theme.ts). The two blocks below must stay identical
+ * (src/lib/theme.test.ts checks). WCAG ratios on --surface: ink 14.4, muted 7.4,
+ * primary 6.4, on-primary/primary 7.0, warn 8.4, danger 5.9, accent 8.2, chart-rest 3.4.
+ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: oklch(0.185 0.012 55);
+    --surface: oklch(0.225 0.014 55);
+    --ink: oklch(0.94 0.012 70);
+    --muted: oklch(0.74 0.018 60);
+    --line: oklch(0.32 0.014 50);
+    --primary: oklch(0.71 0.125 38);
+    --primary-deep: oklch(0.82 0.085 45);
+    --primary-soft: oklch(0.29 0.045 38);
+    --on-primary: oklch(0.18 0.02 40);
+    --accent: oklch(0.76 0.08 210);
+    --accent-soft: oklch(0.28 0.035 210);
+    --warn: oklch(0.78 0.13 70);
+    --danger: oklch(0.7 0.17 22);
+    --cat-mix: 80%;
+    --scrim: rgb(0 0 0 / 0.64);
+    --fab-glow: rgb(0 0 0 / 0.45);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: oklch(0.185 0.012 55);
+  --surface: oklch(0.225 0.014 55);
+  --ink: oklch(0.94 0.012 70);
+  --muted: oklch(0.74 0.018 60);
+  --line: oklch(0.32 0.014 50);
+  --primary: oklch(0.71 0.125 38);
+  --primary-deep: oklch(0.82 0.085 45);
+  --primary-soft: oklch(0.29 0.045 38);
+  --on-primary: oklch(0.18 0.02 40);
+  --accent: oklch(0.76 0.08 210);
+  --accent-soft: oklch(0.28 0.035 210);
+  --warn: oklch(0.78 0.13 70);
+  --danger: oklch(0.7 0.17 22);
+  --cat-mix: 80%;
+  --scrim: rgb(0 0 0 / 0.64);
+  --fab-glow: rgb(0 0 0 / 0.45);
 }
 
 @theme inline {
@@ -129,15 +195,21 @@ a {
 }
 
 .fab-shadow {
-  box-shadow: 0 8px 20px color-mix(in oklab, var(--primary) 28%, transparent);
+  box-shadow: 0 8px 20px var(--fab-glow);
 }
 
 .highlight-row {
   background: color-mix(in oklab, var(--primary-soft) 80%, var(--surface));
 }
 
+/* A household's category colour as a bar or dot: set --cat inline, e.g. style={{ "--cat": color }}.
+   Seed colours drop to ~2.7:1 on the dark surface; the 80% mix keeps them >= 4:1. */
+.cat-fill {
+  background: color-mix(in oklab, var(--cat, var(--primary)) var(--cat-mix), var(--ink));
+}
+
 .sheet-scrim {
-  background: rgb(0 0 0 / 0.48);
+  background: var(--scrim);
   transition: opacity var(--dur-sheet) var(--ease-out);
 }
 
