@@ -20,7 +20,7 @@ export function transactionsToCsv(rows: Transaction[]): string {
       [
         row.occurred_on,
         csv(row.name),
-        row.amount.toFixed(2),
+        Number(row.amount).toFixed(2),
         csv(row.category?.name ?? ""),
         csv(row.subcategory?.name ?? ""),
         csv(row.merchant?.name ?? ""),
@@ -34,8 +34,14 @@ export function transactionsToCsv(rows: Transaction[]): string {
 }
 
 export function transactionsToExcelXml(rows: Transaction[]): string {
-  const cells = (values: string[]) =>
-    values.map((value) => `<Cell><Data ss:Type="String">${xml(value)}</Data></Cell>`).join("");
+  const cells = (values: (string | number)[]) =>
+    values
+      .map((value) =>
+        typeof value === "number" && Number.isFinite(value)
+          ? `<Cell><Data ss:Type="Number">${value}</Data></Cell>`
+          : `<Cell><Data ss:Type="String">${xml(String(value))}</Data></Cell>`,
+      )
+      .join("");
   const header = cells([
     "Date",
     "Name",
@@ -53,7 +59,7 @@ export function transactionsToExcelXml(rows: Transaction[]): string {
         `<Row>${cells([
           row.occurred_on,
           row.name,
-          String(row.amount),
+          Number(row.amount),
           row.category?.name ?? "",
           row.subcategory?.name ?? "",
           row.merchant?.name ?? "",
@@ -86,13 +92,22 @@ export function transactionsToPdf(rows: Transaction[], title: string): Uint8Arra
   return buildSimplePdf(lines);
 }
 
+// Text that starts with = + - @ tab or CR runs as a formula when the CSV opens in
+// Excel or Sheets, so it gets a leading apostrophe. Plain numbers are left alone.
+const FORMULA_START = /^[=+\-@\t\r]/;
+const PLAIN_NUMBER = /^-?\d+(\.\d+)?$/;
+
 function csv(value: string): string {
-  if (/[",\n]/.test(value)) return `"${value.replace(/"/g, '""')}"`;
-  return value;
+  const safe = FORMULA_START.test(value) && !PLAIN_NUMBER.test(value) ? `'${value}` : value;
+  if (/[",\r\n]/.test(safe)) return `"${safe.replace(/"/g, '""')}"`;
+  return safe;
 }
 
 function xml(value: string): string {
   return value
+    // Characters XML 1.0 cannot carry would make Excel refuse the whole file.
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, "")
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
