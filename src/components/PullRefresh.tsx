@@ -32,6 +32,8 @@ export function PullRefresh({
     setBusy(true);
     try {
       await onRefresh();
+    } catch {
+      // A failed refresh keeps what is on screen; just end the spinner.
     } finally {
       setBusy(false);
     }

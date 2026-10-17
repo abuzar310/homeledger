@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
+import { EmptyState } from "@/components/EmptyState";
 import { MonthInsight } from "@/components/MonthInsight";
 import { useHousehold } from "@/components/HouseholdProvider";
-import { Card, ScreenTitle } from "@/components/ui";
+import { Card, PrimaryButton, ScreenTitle } from "@/components/ui";
 import { formatMonthLabel, monthKey } from "@/lib/dates";
 import { formatINR } from "@/lib/money";
 import { fetchMonthTransactions, previousMonthTotal, spendByCategory, summarizeMonth } from "@/lib/reports";
@@ -20,21 +21,30 @@ function SummaryInner() {
   const [rows, setRows] = useState<Transaction[]>([]);
   const [previous, setPrevious] = useState(0);
   const [busy, setBusy] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(async () => {
     if (!household) return;
     const supabase = createClient();
     setBusy(true);
-    Promise.all([
-      fetchMonthTransactions(supabase, household.id, month),
-      previousMonthTotal(supabase, household.id, month),
-    ])
-      .then(([txs, prev]) => {
-        setRows(txs);
-        setPrevious(prev);
-      })
-      .finally(() => setBusy(false));
+    setError(false);
+    try {
+      const [txs, prev] = await Promise.all([
+        fetchMonthTransactions(supabase, household.id, month),
+        previousMonthTotal(supabase, household.id, month),
+      ]);
+      setRows(txs);
+      setPrevious(prev);
+    } catch {
+      setError(true);
+    } finally {
+      setBusy(false);
+    }
   }, [household, month]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   const summary = summarizeMonth(rows, month);
   const categories = spendByCategory(rows, catalogs.categories);
@@ -57,6 +67,16 @@ function SummaryInner() {
       <ScreenTitle title={`${formatMonthLabel(month)} summary`} />
       {busy ? (
         <div className="skeleton h-40 rounded-xl" aria-busy="true" aria-label="Loading summary" />
+      ) : error ? (
+        <EmptyState
+          title="Something went wrong."
+          body="This month's summary could not be loaded."
+          action={
+            <PrimaryButton type="button" onClick={() => void load()}>
+              Try again
+            </PrimaryButton>
+          }
+        />
       ) : (
         <>
           <div>

@@ -1,10 +1,11 @@
 "use client";
 
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { EmptyState } from "@/components/EmptyState";
 import { useHousehold } from "@/components/HouseholdProvider";
 import { TransactionRow } from "@/components/TransactionRow";
-import { Card } from "@/components/ui";
+import { Card, PrimaryButton } from "@/components/ui";
 import { formatMonthLabel, monthKey } from "@/lib/dates";
 import { CountUp } from "@/components/CountUp";
 import { formatINR } from "@/lib/money";
@@ -20,15 +21,25 @@ function CategoryReportInner() {
   const { household, catalogs } = useHousehold();
   const [rows, setRows] = useState<Transaction[]>([]);
   const [busy, setBusy] = useState(true);
+  const [error, setError] = useState(false);
   const category = catalogs.categories.find((c) => c.id === id);
 
-  useEffect(() => {
+  const load = useCallback(async () => {
     if (!household) return;
     setBusy(true);
-    fetchMonthTransactions(createClient(), household.id, month, id)
-      .then(setRows)
-      .finally(() => setBusy(false));
+    setError(false);
+    try {
+      setRows(await fetchMonthTransactions(createClient(), household.id, month, id));
+    } catch {
+      setError(true);
+    } finally {
+      setBusy(false);
+    }
   }, [household, month, id]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   const subs = useMemo(() => {
     const map = new Map<string, number>();
@@ -47,11 +58,23 @@ function CategoryReportInner() {
       <div>
         <h1 className="text-[22px] font-semibold">{category?.name ?? "Category"}</h1>
         <p className="text-muted">{formatMonthLabel(month)}</p>
-        <p className="mt-1 text-[28px] font-semibold tabular-nums">
-          <CountUp value={sum(rows)} />
-        </p>
+        {!error ? (
+          <p className="mt-1 text-[28px] font-semibold tabular-nums">
+            <CountUp value={sum(rows)} />
+          </p>
+        ) : null}
       </div>
-      {busy && !rows.length ? (
+      {error ? (
+        <EmptyState
+          title="Something went wrong."
+          body="This category could not be loaded."
+          action={
+            <PrimaryButton type="button" onClick={() => void load()}>
+              Try again
+            </PrimaryButton>
+          }
+        />
+      ) : busy && !rows.length ? (
         <div className="space-y-3" aria-busy="true" aria-label="Loading category">
           <div className="skeleton h-32 rounded-xl" />
           <div className="skeleton h-40 rounded-xl" />
