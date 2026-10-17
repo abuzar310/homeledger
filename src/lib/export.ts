@@ -106,7 +106,6 @@ function csv(value: string): string {
 function xml(value: string): string {
   return value
     // Characters XML 1.0 cannot carry would make Excel refuse the whole file.
-    // eslint-disable-next-line no-control-regex
     .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, "")
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
