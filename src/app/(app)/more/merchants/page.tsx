@@ -6,6 +6,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { useHousehold } from "@/components/HouseholdProvider";
 import { Card, PrimaryButton, ScreenTitle } from "@/components/ui";
 import { formatINR } from "@/lib/money";
+import { likelyDuplicates } from "@/lib/merchants";
 import { allPages } from "@/lib/paging";
 import { createClient } from "@/lib/supabase/client";
 import type { Merchant } from "@/lib/types";
@@ -66,6 +67,8 @@ export default function MerchantsPage() {
     }
   }
 
+  const duplicates = likelyDuplicates(rows.map((row) => row.merchant));
+
   useEffect(() => {
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -74,6 +77,7 @@ export default function MerchantsPage() {
   return (
     <div className="space-y-4">
       <ScreenTitle title="Merchants" />
+      <p className="text-[15px] text-muted">Tap a store to rename it, set its category, or merge duplicates.</p>
       {busy ? (
         <div className="space-y-3" aria-busy="true" aria-label="Loading merchants">
           <div className="skeleton h-16 rounded-2xl" />
@@ -100,6 +104,28 @@ export default function MerchantsPage() {
           }
         />
       ) : (
+        <>
+        {duplicates.length ? (
+          <Card>
+            <h2 className="text-[16px] font-semibold">Possible duplicates</h2>
+            <p className="mt-0.5 text-[13px] text-muted">Open one and use Merge into… to keep their expenses together.</p>
+            <ul className="mt-2">
+              {duplicates.slice(0, 5).map(([a, b]) => (
+                <li key={`${a.id}:${b.id}`}>
+                  <Link
+                    href={`/more/merchants/${a.id}`}
+                    className="press flex min-h-12 items-center justify-between gap-3 border-b border-line text-[15px] last:border-0"
+                  >
+                    <span className="min-w-0 truncate">
+                      {a.name} <span className="text-muted">and</span> {b.name}
+                    </span>
+                    <span className="shrink-0 font-semibold text-primary">Review</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        ) : null}
         <Card>
           <ul>
             {rows.map((row) => (
@@ -119,6 +145,7 @@ export default function MerchantsPage() {
             ))}
           </ul>
         </Card>
+        </>
       )}
     </div>
   );
