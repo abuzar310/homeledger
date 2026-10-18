@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useHousehold } from "@/components/HouseholdProvider";
 import { Card, Field, PrimaryButton, ScreenTitle, SecondaryButton, TextInput } from "@/components/ui";
+import { formatRelativeDay } from "@/lib/dates";
 import { createClient } from "@/lib/supabase/client";
 
 type Member = { id: string; user_id: string; role: string; display_name: string | null; full_name?: string | null };
@@ -20,26 +21,44 @@ export default function MembersPage() {
   const joiningRef = useRef(false);
   const [copied, setCopied] = useState(false);
   const [copyFailed, setCopyFailed] = useState(false);
+  const [codeExpires, setCodeExpires] = useState<string | null>(null);
+  const [codeNote, setCodeNote] = useState<string | null>(null);
+  const [removing, setRemoving] = useState<Member | null>(null);
+  const [leaving, setLeaving] = useState(false);
+
+  async function loadMembers() {
+    if (!household) return;
+    const supabase = createClient();
+    const { data } = await supabase
+      .from("household_members")
+      .select("id, user_id, role, display_name")
+      .eq("household_id", household.id);
+    const rows = (data ?? []) as Member[];
+    const ids = rows.map((row) => row.user_id);
+    const { data: profiles } = ids.length ? await supabase.from("profiles").select("id, full_name").in("id", ids) : { data: [] };
+    const names = new Map((profiles ?? []).map((p) => [p.id, p.full_name]));
+    setMembers(rows.map((row) => ({ ...row, full_name: names.get(row.user_id) ?? row.display_name })));
+  }
 
   useEffect(() => {
     if (!household) return;
     const supabase = createClient();
-    supabase
-      .from("household_members")
-      .select("id, user_id, role, display_name")
-      .eq("household_id", household.id)
-      .then(async ({ data }) => {
-        const rows = (data ?? []) as Member[];
-        const ids = rows.map((row) => row.user_id);
-        const { data: profiles } = ids.length
-          ? await supabase.from("profiles").select("id, full_name").in("id", ids)
-          : { data: [] };
-        const names = new Map((profiles ?? []).map((p) => [p.id, p.full_name]));
-        setMembers(rows.map((row) => ({ ...row, full_name: names.get(row.user_id) ?? row.display_name })));
-      });
-    supabase.rpc("ensure_join_code").then(({ data, error: codeError }) => {
-      if (!codeError && typeof data === "string") setCode(data);
+    void loadMembers();
+    setCode("");
+    setCodeNote(null);
+    supabase.rpc("ensure_join_code").then(async ({ data, error: codeError }) => {
+      if (codeError || typeof data !== "string") {
+        if (codeError && /only the owner/i.test(codeError.message)) setCodeNote("Only the owner can share this home's code.");
+        return;
+      }
+      setCode(data);
+      // Codes last a week; a database without the expiry column simply shows no date.
+      const { data: row } = await supabase.from("households").select("join_code_expires_at").eq("id", household.id).maybeSingle();
+      const expires = (row as { join_code_expires_at?: string | null } | null)?.join_code_expires_at;
+      setCodeExpires(expires ?? null);
     });
+    // loadMembers only reads household from the same render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [household]);
 
   const you = members.find((m) => m.user_id === userId);
@@ -91,13 +110,20 @@ export default function MembersPage() {
     setError(null);
     setStatus(null);
     try {
-      const { error: joinError } = await createClient().rpc("join_household", { code: join.trim() });
+      const { data: joined, error: joinError } = await createClient().rpc("join_household", { code: join.trim() });
       if (joinError) {
         setError(
-          /not found/i.test(joinError.message)
-            ? "That code was not found. Check it and try again."
-            : "Could not join right now. Check your connection and try again.",
+          /too many tries/i.test(joinError.message)
+            ? "Too many wrong codes. Wait an hour and try again."
+            : /not found/i.test(joinError.message)
+              ? "That code was not found or has expired. Ask for a new one."
+              : "Could not join right now. Check your connection and try again.",
         );
+        return;
+      }
+      // A wrong or expired code returns nothing (and counts as a try).
+      if (!joined) {
+        setError("That code was not found or has expired. Ask for a new one.");
         return;
       }
       await refresh();
@@ -122,9 +148,23 @@ export default function MembersPage() {
         ) : (
           <ul>
             {members.map((member) => (
-              <li key={member.id} className="flex justify-between border-b border-line py-3 last:border-0">
-                <span>{member.full_name || (member.user_id === userId ? "You" : "Member")}</span>
-                <span className="text-muted">{member.role === "owner" ? "Owner" : "Member"}</span>
+              <li key={member.id} className="flex min-h-12 items-center justify-between gap-3 border-b border-line py-2 last:border-0">
+                <span className="min-w-0 truncate">
+                  {member.full_name || (member.user_id === userId ? "You" : "Member")}
+                  {member.user_id === userId ? <span className="text-muted"> (you)</span> : null}
+                </span>
+                <span className="flex shrink-0 items-center gap-2">
+                  <span className="text-muted">{member.role === "owner" ? "Owner" : "Member"}</span>
+                  {you?.role === "owner" && member.user_id !== userId ? (
+                    <button
+                      type="button"
+                      className="min-h-11 px-2 text-[14px] font-semibold text-danger"
+                      onClick={() => setRemoving(member)}
+                    >
+                      Remove
+                    </button>
+                  ) : null}
+                </span>
               </li>
             ))}
           </ul>
@@ -134,7 +174,10 @@ export default function MembersPage() {
         <Card>
           <p className="text-[13px] text-muted">Household code</p>
           <p className="mt-1 select-all text-[22px] font-semibold tracking-wide">{code}</p>
-          <p className="mt-2 text-[15px] text-muted">Share this with family. They enter it below after they sign in.</p>
+          <p className="mt-2 text-[15px] text-muted">
+            Share this with family. They enter it below after they sign in.
+            {codeExpires ? ` It works until ${formatRelativeDay(codeExpires.slice(0, 10))}; after that a new code is made here.` : ""}
+          </p>
           <div className="mt-3 grid grid-cols-2 gap-3">
             <SecondaryButton type="button" onClick={() => void copyCode()} aria-live="polite">
               {copied ? "Copied" : "Copy code"}
@@ -152,13 +195,15 @@ export default function MembersPage() {
             <p className="mt-2 text-[15px] text-danger">Could not copy. Press and hold the code to copy it.</p>
           ) : null}
         </Card>
+      ) : codeNote ? (
+        <p className="text-[15px] text-muted">{codeNote}</p>
       ) : null}
       <Card className="space-y-3">
         <Field label="Join another household">
           <TextInput
             value={join}
             onChange={(e) => setJoin(e.target.value.toUpperCase())}
-            placeholder="ABC123"
+            placeholder="Household code"
             disabled={joining}
           />
         </Field>
@@ -169,10 +214,51 @@ export default function MembersPage() {
         </PrimaryButton>
         {you?.role === "member" ? <p className="text-[13px] text-muted">You are a member of this home.</p> : null}
       </Card>
+      {members.length > 1 ? (
+        <button type="button" className="min-h-12 w-full text-[15px] font-semibold text-danger" onClick={() => setLeaving(true)}>
+          Leave this household
+        </button>
+      ) : null}
+      <ConfirmDialog
+        open={removing != null}
+        title={`Remove ${removing?.full_name || "this member"}?`}
+        body="They lose access to this home's expenses. Expenses they added stay, just without their name on them."
+        confirmLabel="Remove"
+        busyLabel="Removing…"
+        danger
+        onClose={() => setRemoving(null)}
+        onConfirm={async () => {
+          if (!removing) return;
+          const { error: removeError } = await createClient().rpc("remove_member", { p_member: removing.id });
+          if (removeError) throw removeError;
+          setStatus(`${removing.full_name || "The member"} was removed.`);
+          await loadMembers();
+        }}
+      />
+      <ConfirmDialog
+        open={leaving}
+        title="Leave this household?"
+        body={
+          you?.role === "owner"
+            ? "You stop seeing its expenses. If nobody else is an owner, the longest-standing member becomes one. The expenses stay with the home."
+            : "You stop seeing its expenses. The expenses stay with the home."
+        }
+        confirmLabel="Leave"
+        busyLabel="Leaving…"
+        danger
+        onClose={() => setLeaving(false)}
+        onConfirm={async () => {
+          if (!household) return;
+          const { error: leaveError } = await createClient().rpc("leave_household", { p_household: household.id });
+          if (leaveError) throw leaveError;
+          await refresh();
+          setStatus("You left the household.");
+        }}
+      />
       <ConfirmDialog
         open={confirmOpen}
         title="Join this household?"
-        body={`HomeLedger will switch to the household with code ${join.trim()} and show its expenses instead of this one's. Your current expenses stay saved, but they won't show here after you switch. If this home has no expenses yet, it is removed, along with its budgets and bills.`}
+        body={`HomeLedger will switch to the household with code ${join.trim()} and show its expenses instead of this one's. Your current expenses stay saved, but they won't show here after you switch. If this home was never used (no expenses, bills, budgets or stores), it is removed.`}
         confirmLabel={joining ? "Joining…" : "Join household"}
         onConfirm={confirmJoin}
         onClose={() => {

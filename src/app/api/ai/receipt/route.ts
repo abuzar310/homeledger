@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { bodyTooLarge, requireAiUser } from "@/lib/ai-auth";
+import { AI_LIMIT_MESSAGE, bodyTooLarge, requireAiUser, withinAiQuota } from "@/lib/ai-auth";
 import { AI_INPUT_LIMITS, googleAiKey, parseReceiptWithGemini, toReceiptInput } from "@/lib/gemini";
 
 export const maxDuration = 30;
@@ -18,6 +18,11 @@ export async function POST(request: Request) {
   const input = toReceiptInput(await request.json().catch(() => null));
   if (input === "too_large") return NextResponse.json({ result: null, error: TOO_LARGE }, { status: 413 });
   if (!input) return NextResponse.json({ result: null });
+
+  // Counted only for requests that will really reach the model.
+  if (!(await withinAiQuota("receipt"))) {
+    return NextResponse.json({ result: null, error: AI_LIMIT_MESSAGE }, { status: 429 });
+  }
 
   try {
     return NextResponse.json({ result: await parseReceiptWithGemini(input.mime, input.data) });

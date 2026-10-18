@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { bodyTooLarge, requireAiUser } from "@/lib/ai-auth";
+import { AI_LIMIT_MESSAGE, bodyTooLarge, requireAiUser, withinAiQuota } from "@/lib/ai-auth";
 import { categorizeWithGemini, googleAiKey, toCategorizeInput } from "@/lib/gemini";
 
 export const maxDuration = 20;
@@ -15,6 +15,11 @@ export async function POST(request: Request) {
 
   const input = toCategorizeInput(await request.json().catch(() => null));
   if (!input) return NextResponse.json({ result: null });
+
+  // Counted only for requests that will really reach the model.
+  if (!(await withinAiQuota("categorize"))) {
+    return NextResponse.json({ result: null, error: AI_LIMIT_MESSAGE }, { status: 429 });
+  }
 
   try {
     return NextResponse.json({ result: await categorizeWithGemini(input) });
