@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Banknote, Bell, BookOpen, ChevronRight, Download, HelpCircle, Repeat, Store, Tag, UserRound, Users, WalletCards } from "lucide-react";
+import { InstallApp } from "@/components/InstallApp";
 import { IconWell, ScreenTitle } from "@/components/ui";
 import type { LucideIcon } from "lucide-react";
 
@@ -41,6 +42,7 @@ export default function MorePage() {
   return (
     <div className="space-y-6">
       <ScreenTitle title="More" subtitle="Household, data, and account" />
+      <InstallApp />
       {SECTIONS.map((section) => (
         <section key={section.title}>
           <h2 className="section-label mb-2 px-1">{section.title}</h2>
