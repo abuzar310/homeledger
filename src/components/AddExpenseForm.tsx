@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { requestReceiptRead, shrinkReceiptPhoto } from "@/lib/ai-client";
 import type { ReceiptDraft } from "@/lib/ai-types";
 import { parseBankSms } from "@/lib/bank-sms";
+import { attachReceipt } from "@/lib/receipts";
 import { formatRelativeDay, todayISO } from "@/lib/dates";
 import { formatINR, parseAmount } from "@/lib/money";
 import { enqueueOffline, isNetworkError } from "@/lib/offline";
@@ -18,11 +19,6 @@ import { useHousehold } from "./HouseholdProvider";
 import { SaveStatus } from "./SaveStatus";
 import { Field, PrimaryButton, Select, TextArea, TextInput } from "./ui";
 
-function receiptExtension(type: string): string {
-  if (type === "image/jpeg") return "jpg";
-  const sub = type.startsWith("image/") ? type.slice(6).replace(/[^a-z0-9]/gi, "").toLowerCase() : "";
-  return sub || "jpg";
-}
 
 const VOICE_LANGS = [
   { code: "en-IN", label: "English" },
@@ -374,19 +370,8 @@ export function AddExpenseForm({
     let receiptFailed = false;
     if (receipt) {
       try {
-        const ext = receiptExtension(receipt.type);
-        const path = `${household.id}/${saved.id}/${crypto.randomUUID()}.${ext}`;
-        const { error: uploadError } = await supabase.storage
-          .from("receipts")
-          .upload(path, receipt, { upsert: true, contentType: receipt.type || "image/jpeg" });
-        if (uploadError) throw uploadError;
-        const { error: rowError } = await supabase.from("receipts").insert({
-          household_id: household.id,
-          transaction_id: saved.id,
-          storage_path: path,
-          file_name: receipt.name,
-        });
-        if (rowError) throw rowError;
+        // A fresh path with no upsert, so it works without the storage UPDATE policy.
+        await attachReceipt(supabase, household.id, saved.id, receipt);
       } catch {
         receiptFailed = true;
       }

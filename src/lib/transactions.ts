@@ -262,9 +262,16 @@ export async function updateExpense(
 }
 
 export async function deleteExpense(supabase: SupabaseClient, id: string): Promise<void> {
+  // Receipt rows go with the expense (cascade), but their photos would stay in storage.
+  const { data: receipts } = await supabase.from("receipts").select("storage_path").eq("transaction_id", id);
   const { error } = await supabase.from("transactions").delete().eq("id", id);
   if (error) throw error;
   clearMonthCache();
+  const paths = ((receipts ?? []) as { storage_path: string }[]).map((r) => r.storage_path).filter(Boolean);
+  if (paths.length) {
+    // After the delete, so a failed delete never leaves an expense pointing at a missing photo.
+    await supabase.storage.from("receipts").remove(paths).catch(() => undefined);
+  }
 }
 
 export async function replaceItems(
