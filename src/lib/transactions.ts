@@ -113,6 +113,25 @@ export async function getTransaction(
   return data ? normalizeTx(data as Transaction) : null;
 }
 
+// A member's row id never changes for a household, so look it up once per session.
+const memberIds = new Map<string, string | null>();
+
+function memberIdFor(supabase: SupabaseClient, householdId: string, userId: string): Promise<string | null> {
+  const key = `${householdId}:${userId}`;
+  if (memberIds.has(key)) return Promise.resolve(memberIds.get(key)!);
+  // Promise.resolve starts the request now (supabase-js queries only run once awaited).
+  return Promise.resolve(
+    supabase.from("household_members").select("id").eq("household_id", householdId).eq("user_id", userId).maybeSingle(),
+  )
+    .then(({ data }) => {
+      const id = (data?.id as string | undefined) ?? null;
+      if (id) memberIds.set(key, id);
+      return id;
+    })
+    // Attribution only: a failed lookup must not fail (or leave an unhandled rejection from) a save.
+    .catch(() => null);
+}
+
 export async function saveExpense(
   supabase: SupabaseClient,
   householdId: string,
@@ -120,24 +139,22 @@ export async function saveExpense(
   catalogs: Catalogs,
   input: SaveExpenseInput,
 ): Promise<Transaction> {
-  const { data: existing } = await supabase
-    .from("transactions")
-    .select(TX_SELECT)
-    .eq("client_request_id", input.clientRequestId)
-    .maybeSingle();
-  if (existing) return normalizeTx(existing as Transaction);
+  // No duplicate pre-check: a repeat clientRequestId fails the insert with 23505 below and the saved
+  // row is returned from there. The member lookup starts now and runs alongside the merchant work.
+  const memberId = memberIdFor(supabase, householdId, userId);
 
-  const { data: merchants } = await supabase
-    .from("merchants")
-    .select("id, household_id, name, normalized_name, default_category_id, default_subcategory_id, default_channel")
-    .eq("household_id", householdId);
-  const suggestion = input.userCategorized
-    ? null
-    : await categorizeExpense(
-        { name: input.name, notes: input.notes, merchantName: input.merchantName },
-        catalogs,
-        (merchants ?? []) as Merchant[],
-      );
+  let suggestion: Awaited<ReturnType<typeof categorizeExpense>> | null = null;
+  if (!input.userCategorized) {
+    const { data: merchants } = await supabase
+      .from("merchants")
+      .select("id, household_id, name, normalized_name, default_category_id, default_subcategory_id, default_channel")
+      .eq("household_id", householdId);
+    suggestion = await categorizeExpense(
+      { name: input.name, notes: input.notes, merchantName: input.merchantName },
+      catalogs,
+      (merchants ?? []) as Merchant[],
+    );
+  }
 
   const merchantName = input.merchantName?.trim() || suggestion?.merchantName || null;
   const merchantId = merchantName
@@ -149,16 +166,9 @@ export async function saveExpense(
       })
     : null;
 
-  const { data: member } = await supabase
-    .from("household_members")
-    .select("id")
-    .eq("household_id", householdId)
-    .eq("user_id", userId)
-    .maybeSingle();
-
   const payload = {
     household_id: householdId,
-    member_id: member?.id ?? null,
+    member_id: await memberId,
     created_by: userId,
     name: input.name.trim(),
     amount: input.amount,

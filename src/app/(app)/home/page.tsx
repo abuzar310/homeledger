@@ -7,6 +7,7 @@ import { BudgetProgress } from "@/components/BudgetProgress";
 import { CategoryBars } from "@/components/CategoryBars";
 import { EmptyState } from "@/components/EmptyState";
 import { useHousehold } from "@/components/HouseholdProvider";
+import { LastMonthCard } from "@/components/LastMonthCard";
 import { OverviewCard } from "@/components/OverviewCard";
 import { PullRefresh } from "@/components/PullRefresh";
 import { QuickAddGrid } from "@/components/QuickAddGrid";
@@ -187,6 +188,10 @@ function HomeInner() {
         />
       ) : (
         <>
+          {household && month === today.slice(0, 7) ? (
+            <LastMonthCard householdId={household.id} categories={catalogs.categories} today={today} />
+          ) : null}
+
           <div className={enter ? "enter enter-2" : undefined}>
             <OverviewCard
               month={month}

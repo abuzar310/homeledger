@@ -17,6 +17,19 @@ export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
   if (!url || !key) return response;
 
+  // These never redirect on sign-in state and check auth themselves (or need none), so skip the
+  // auth round trip: the AI routes call requireAiUser, and the auth routes exchange their own code.
+  const early = request.nextUrl.pathname;
+  if (
+    early.startsWith("/api/") ||
+    early.startsWith("/auth/") ||
+    early.startsWith("/.well-known/") ||
+    early === "/sw.js" ||
+    early === "/manifest.webmanifest"
+  ) {
+    return response;
+  }
+
   const supabase = createServerClient(url, key, {
     cookies: {
       getAll() {

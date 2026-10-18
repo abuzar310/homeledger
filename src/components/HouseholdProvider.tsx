@@ -62,6 +62,8 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
       setProfile(null);
       setHousehold(null);
       setLoading(false);
+      // Signed out (or the session ended) while inside the app: a full load lets the proxy decide.
+      if (typeof window !== "undefined" && navigator.onLine) window.location.replace("/login");
       return;
     }
     setUser(current);
