@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { useHousehold } from "@/components/HouseholdProvider";
-import { Field, PrimaryButton, ScreenTitle, SecondaryButton } from "@/components/ui";
-import { formatMonthLabel, monthEnd, monthKey, monthStart } from "@/lib/dates";
+import { Field, PrimaryButton, ScreenTitle, SecondaryButton, TextInput } from "@/components/ui";
+import { monthKey, monthStart, todayISO } from "@/lib/dates";
 import { downloadBlob, transactionsToCsv, transactionsToExcelXml, transactionsToPdf } from "@/lib/export";
+import { RANGE_OPTIONS, resolveExportRange, type ExportRange, type RangeKind } from "@/lib/export-range";
 import { importRequestIds, parseExpenseCsv } from "@/lib/import-csv";
 import { createClient } from "@/lib/supabase/client";
 import { listTransactions, saveExpense } from "@/lib/transactions";
@@ -14,18 +15,26 @@ import type { Transaction } from "@/lib/types";
 const PAGE_SIZE = 1000;
 const MAX_PAGES = 100;
 
+type ExportKind = "csv" | "excel" | "pdf" | "backup";
+
 export default function ExportPage() {
   const { household, catalogs, userId } = useHousehold();
+  const [kind, setKind] = useState<RangeKind>("month");
   const [month, setMonth] = useState(monthKey());
+  const [customFrom, setCustomFrom] = useState(() => monthStart(monthKey()));
+  const [customTo, setCustomTo] = useState(() => todayISO());
   const [categoryId, setCategoryId] = useState("");
   const [busy, setBusy] = useState(false);
+  const [exporting, setExporting] = useState<ExportKind | null>(null);
   const [importNote, setImportNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const range = resolveExportRange({ kind, month, customFrom, customTo });
+  const rangeError = "error" in range ? range.error : null;
 
-  async function load(): Promise<Transaction[]> {
+  async function load(span: ExportRange): Promise<Transaction[]> {
     if (!household) return [];
     const supabase = createClient();
-    const filters = { from: monthStart(month), to: monthEnd(month), categoryId: categoryId || undefined };
+    const filters = { from: span.from, to: span.to, categoryId: categoryId || undefined };
     const seen = new Set<string>();
     const all: Transaction[] = [];
     for (let page = 0; page < MAX_PAGES; page += 1) {
@@ -40,30 +49,76 @@ export default function ExportPage() {
     return all;
   }
 
-  async function runExport(task: (rows: Transaction[]) => void) {
+  async function runExport(what: ExportKind, task: (rows: Transaction[], span: ExportRange) => void) {
+    if ("error" in range) {
+      setError(range.error);
+      return;
+    }
+    const span = range;
     setBusy(true);
+    setExporting(what);
     setError(null);
     setImportNote(null);
     try {
-      task(await load());
+      task(await load(span), span);
     } catch {
       setError("Could not export. Check your connection and try again.");
     } finally {
       setBusy(false);
+      setExporting(null);
     }
   }
 
   return (
     <div className="space-y-4">
       <ScreenTitle title="Export / Import" />
-      <Field label="Month">
-        <input
-          type="month"
-          className="min-h-12 w-full rounded-xl border border-line bg-surface px-3.5"
-          value={month}
-          onChange={(e) => setMonth(e.target.value)}
-        />
-      </Field>
+      <div>
+        <span className="mb-1.5 block text-[15px] font-medium text-muted" id="export-range-label">
+          Dates
+        </span>
+        <div className="flex flex-wrap gap-2" role="group" aria-labelledby="export-range-label">
+          {RANGE_OPTIONS.map((option) => (
+            <button
+              key={option.kind}
+              type="button"
+              aria-pressed={kind === option.kind}
+              disabled={busy}
+              onClick={() => {
+                setKind(option.kind);
+                setError(null);
+              }}
+              className={`press min-h-11 rounded-full px-4 text-[14px] font-semibold disabled:opacity-45 ${
+                kind === option.kind ? "bg-primary text-on-primary" : "bg-surface text-muted ring-1 ring-line"
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      {kind === "month" ? (
+        <Field label="Month">
+          <input
+            type="month"
+            className="min-h-12 w-full rounded-xl border border-line bg-surface px-3.5"
+            value={month}
+            onChange={(e) => setMonth(e.target.value)}
+          />
+        </Field>
+      ) : null}
+      {kind === "custom" ? (
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="From">
+            <TextInput type="date" value={customFrom} max={customTo || undefined} onChange={(e) => setCustomFrom(e.target.value)} />
+          </Field>
+          <Field label="To">
+            <TextInput type="date" value={customTo} min={customFrom || undefined} onChange={(e) => setCustomTo(e.target.value)} />
+          </Field>
+        </div>
+      ) : null}
+      <p className={`text-[15px] ${rangeError ? "text-danger" : "text-muted"}`} aria-live="polite">
+        {"error" in range ? range.error : `Covers ${range.label}`}
+      </p>
       <Field label="Category">
         <select
           className="min-h-12 w-full rounded-xl border border-line bg-surface px-3.5"
@@ -80,40 +135,40 @@ export default function ExportPage() {
       </Field>
       <div className="space-y-2">
         <PrimaryButton
-          disabled={busy}
+          disabled={busy || rangeError != null}
           onClick={() =>
-            void runExport((rows) =>
-              downloadBlob(`homeledger-${month}.csv`, transactionsToCsv(rows), "text/csv;charset=utf-8"),
+            void runExport("csv", (rows, span) =>
+              downloadBlob(`homeledger-${span.fileTag}.csv`, transactionsToCsv(rows), "text/csv;charset=utf-8"),
             )
           }
         >
-          Export CSV
+          {exporting === "csv" ? "Preparing CSV…" : "Export CSV"}
         </PrimaryButton>
         <SecondaryButton
           className="w-full"
-          disabled={busy}
+          disabled={busy || rangeError != null}
           onClick={() =>
-            void runExport((rows) =>
-              downloadBlob(`homeledger-${month}.xls`, transactionsToExcelXml(rows), "application/vnd.ms-excel"),
+            void runExport("excel", (rows, span) =>
+              downloadBlob(`homeledger-${span.fileTag}.xls`, transactionsToExcelXml(rows), "application/vnd.ms-excel"),
             )
           }
         >
-          Export Excel
+          {exporting === "excel" ? "Preparing Excel…" : "Export Excel"}
         </SecondaryButton>
         <SecondaryButton
           className="w-full"
-          disabled={busy}
+          disabled={busy || rangeError != null}
           onClick={() =>
-            void runExport((rows) =>
+            void runExport("pdf", (rows, span) =>
               downloadBlob(
-                `homeledger-${month}.pdf`,
-                transactionsToPdf(rows, `HomeLedger ${formatMonthLabel(month)}`) as unknown as BlobPart,
+                `homeledger-${span.fileTag}.pdf`,
+                transactionsToPdf(rows, `HomeLedger ${span.label}`) as unknown as BlobPart,
                 "application/pdf",
               ),
             )
           }
         >
-          Export PDF
+          {exporting === "pdf" ? "Preparing PDF…" : "Export PDF"}
         </SecondaryButton>
       </div>
       <Field label="Import CSV">
@@ -193,18 +248,22 @@ export default function ExportPage() {
       </Field>
       <SecondaryButton
         className="w-full"
-        disabled={busy}
+        disabled={busy || rangeError != null}
         onClick={() =>
-          void runExport((rows) =>
+          void runExport("backup", (rows, span) =>
             downloadBlob(
-              `homeledger-backup-${month}.json`,
-              JSON.stringify({ version: 1, month, transactions: rows }, null, 2),
+              `homeledger-backup-${span.fileTag}.json`,
+              JSON.stringify(
+                { version: 1, ...(kind === "month" ? { month } : {}), from: span.from, to: span.to, transactions: rows },
+                null,
+                2,
+              ),
               "application/json",
             ),
           )
         }
       >
-        Download backup
+        {exporting === "backup" ? "Preparing backup…" : "Download backup"}
       </SecondaryButton>
       {error ? (
         <p className="text-[15px] text-danger" role="alert">
