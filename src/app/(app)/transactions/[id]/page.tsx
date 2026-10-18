@@ -1,12 +1,14 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useHousehold } from "@/components/HouseholdProvider";
 import { Card, Field, PrimaryButton, SecondaryButton, TextArea, TextInput } from "@/components/ui";
+import { shrinkReceiptPhoto } from "@/lib/ai-client";
 import { formatRelativeDay, formatTimeIST } from "@/lib/dates";
 import { formatINR, parseAmount } from "@/lib/money";
+import { attachReceipt, deleteReceipts, latestReceipt, replaceReceipt } from "@/lib/receipts";
 import { createClient } from "@/lib/supabase/client";
 import { deleteExpense, getTransaction, replaceItems, updateExpense, upsertMerchant } from "@/lib/transactions";
 import { CHANNELS, CHANNEL_LABELS, type PurchaseChannel, type Transaction } from "@/lib/types";
@@ -48,7 +50,14 @@ export default function TransactionDetailPage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const editing = draft != null;
   const [confirm, setConfirm] = useState(false);
-  const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
+  const receipt = latestReceipt(tx?.receipts);
+  const receiptPath = receipt?.storage_path ?? null;
+  const [signed, setSigned] = useState<{ path: string; url: string | null } | null>(null);
+  const receiptInput = useRef<HTMLInputElement>(null);
+  const [receiptBusy, setReceiptBusy] = useState<"adding" | "replacing" | null>(null);
+  const [receiptError, setReceiptError] = useState<string | null>(null);
+  const [receiptNote, setReceiptNote] = useState<string | null>(null);
+  const [confirmRemove, setConfirmRemove] = useState(false);
 
   useEffect(() => {
     if (!household) return;
@@ -62,13 +71,25 @@ export default function TransactionDetailPage() {
   }, [id, household]);
 
   useEffect(() => {
-    const path = tx?.receipts?.[0]?.storage_path;
-    if (!path) return;
+    if (!receiptPath) return;
+    let live = true;
     createClient()
       .storage.from("receipts")
-      .createSignedUrl(path, 3600)
-      .then(({ data }) => setReceiptUrl(data?.signedUrl ?? null));
-  }, [tx]);
+      .createSignedUrl(receiptPath, 3600)
+      .then(
+        ({ data }) => {
+          if (live) setSigned({ path: receiptPath, url: data?.signedUrl ?? null });
+        },
+        () => {
+          if (live) setSigned({ path: receiptPath, url: null });
+        },
+      );
+    return () => {
+      live = false;
+    };
+  }, [receiptPath]);
+  // undefined while the link for the current photo is still loading, null if it failed.
+  const receiptUrl = signed && signed.path === receiptPath ? signed.url : undefined;
 
   if (missing) {
     return (
@@ -129,6 +150,41 @@ export default function TransactionDetailPage() {
     } finally {
       setSaving(false);
     }
+  }
+
+  async function onReceiptPicked(input: HTMLInputElement) {
+    const picked = input.files?.[0];
+    input.value = ""; // so picking the same photo again still fires
+    if (!picked || !household || !tx || receiptBusy) return;
+    setReceiptError(null);
+    setReceiptNote(null);
+    if (picked.type && !picked.type.startsWith("image/")) {
+      setReceiptError("Choose a photo of the receipt.");
+      return;
+    }
+    const old = tx.receipts ?? [];
+    setReceiptBusy(old.length ? "replacing" : "adding");
+    const supabase = createClient();
+    try {
+      const file = await shrinkReceiptPhoto(picked);
+      if (old.length) {
+        const { oldRemoved } = await replaceReceipt(supabase, household.id, tx.id, file, old);
+        if (!oldRemoved) setReceiptNote("New photo saved. The old copy couldn't be removed.");
+      } else {
+        await attachReceipt(supabase, household.id, tx.id, file);
+      }
+    } catch {
+      setReceiptError("Could not save the photo. Check your connection and try again.");
+      setReceiptBusy(null);
+      return;
+    }
+    try {
+      const row = await getTransaction(supabase, tx.id, household.id);
+      if (row) setTx(row);
+    } catch {
+      setReceiptNote("Photo saved. Open this expense again to see it.");
+    }
+    setReceiptBusy(null);
   }
 
   const when = `${formatRelativeDay(tx.occurred_on)}${tx.created_at ? ` · ${formatTimeIST(tx.created_at)}` : ""}`;
@@ -266,16 +322,68 @@ export default function TransactionDetailPage() {
         </SecondaryButton>
       ) : null}
 
-      {receiptUrl ? (
+      <input
+        ref={receiptInput}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => void onReceiptPicked(e.currentTarget)}
+      />
+      {receipt ? (
         <Card>
           <h2 className="mb-2 text-[16px] font-semibold">Receipt</h2>
-          <a href={receiptUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center text-[15px] font-semibold text-primary">
-            View receipt
-          </a>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={receiptUrl} alt="Receipt" className="mt-2 max-h-80 w-full rounded-xl object-contain" />
+          {receiptUrl ? (
+            <>
+              <a href={receiptUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center text-[15px] font-semibold text-primary">
+                View receipt
+              </a>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={receiptUrl} alt="Receipt" className="mt-2 max-h-80 w-full rounded-xl object-contain" />
+            </>
+          ) : receiptUrl === undefined ? (
+            <div className="skeleton h-40 rounded-xl" aria-busy="true" aria-label="Loading receipt" />
+          ) : (
+            <p className="text-[15px] text-muted">Could not load the photo. Check your connection, or replace it.</p>
+          )}
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <SecondaryButton disabled={receiptBusy != null} onClick={() => receiptInput.current?.click()}>
+              {receiptBusy === "replacing" ? "Replacing…" : "Replace photo"}
+            </SecondaryButton>
+            <SecondaryButton className="text-danger" disabled={receiptBusy != null} onClick={() => setConfirmRemove(true)}>
+              Remove photo
+            </SecondaryButton>
+          </div>
         </Card>
+      ) : (
+        <SecondaryButton className="w-full" disabled={receiptBusy != null} onClick={() => receiptInput.current?.click()}>
+          {receiptBusy === "adding" ? "Adding photo…" : "Add receipt photo"}
+        </SecondaryButton>
+      )}
+      {receiptError ? (
+        <p className="text-[15px] text-danger" role="alert">
+          {receiptError}
+        </p>
       ) : null}
+      {receiptNote ? (
+        <p className="text-[15px] text-muted" role="status">
+          {receiptNote}
+        </p>
+      ) : null}
+      <ConfirmDialog
+        open={confirmRemove}
+        title="Remove the receipt photo?"
+        body="The photo is deleted from this expense. The expense itself stays."
+        confirmLabel="Remove photo"
+        busyLabel="Removing…"
+        danger
+        onClose={() => setConfirmRemove(false)}
+        onConfirm={async () => {
+          await deleteReceipts(createClient(), tx.receipts ?? []);
+          setReceiptError(null);
+          setReceiptNote(null);
+          setTx((cur) => (cur ? { ...cur, receipts: [] } : cur));
+        }}
+      />
 
       {editing ? (
         <div className="grid grid-cols-2 gap-3">
